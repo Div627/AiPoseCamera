@@ -1,0 +1,33 @@
+# Built artifacts
+build/
+app/build/
+*.apk.idsig
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+local.properties
+.DS_Store
+
+# Keys
+keystore.properties
+*.jks
+
+.local-diagnostics/
+
+# Local caches, credentials and delivery artifacts
+.gradle/
+.kotlin/
+distribution/
+*.apk
+*.aab
+*.keystore
+*.pem
+*.p12
+.env
+.env.*
+*.log
+*.pid
+/tools/cloudflared
+/design/
+/DELIVERY*.md

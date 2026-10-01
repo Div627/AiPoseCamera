@@ -1,0 +1,15 @@
+Reviewed 2026-10-01. Original concise project guidance, not upstream article reproduction or endorsement.
+Google Camera Coach: stepwise opt-in coaching reference; our app does not implement its visual scene analysis.
+https://support.google.com/pixelcamera/answer/17367411?hl=en
+Samsung Shot suggestions: target-based composition reference; our target is explicitly user-drawn.
+https://www.samsung.com/in/support/mobile-devices/how-to-use-shot-suggestions-galaxy/
+Fujifilm: natural family interaction/environmental portrait references.
+https://www.fujifilm-x.com/en-gb/learning-centre/create-pro-style-family-portraits/
+https://www.fujifilm-x.com/en-gb/learning-centre/five-tips-for-better-portraits/
+Nikon: mountain foreground/composition reference.
+https://www.nikonusa.com/learn-and-explore/c/tips-and-techniques/tips-for-photographing-mountains
+Visit Iceland: aurora context; no fixed DSLR exposure values copied into mobile controls.
+https://www.visiticeland.com/the-northern-lights/
+Android camera extensions: device support varies; no OEM HDR/night extension enabled in this build.
+https://developer.android.com/media/camera/camera-extensions
+Current travel safety must be checked separately: https://safetravel.is/

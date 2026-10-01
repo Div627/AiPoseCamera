@@ -1,0 +1,15 @@
+Photography guide v1.0 provenance / reviewed 2026-09-30
+
+Existing skill: https://github.com/jeffreytse/grimoire-core/blob/30af0bf1e6eb41bef683a2f375bfdb58899806a1/skills/photography/composition/skills/apply-rule-of-thirds/SKILL.md
+Repository commit: 30af0bf1e6eb41bef683a2f375bfdb58899806a1
+License: MIT, copyright (c) 2026 Jeffrey Tse. Full notice included in UPSTREAM-LICENSE.txt.
+Only brief composition guidance is adapted, in original Chinese wording. The skill's unverified Nikon/MIT eye-tracking claims, absolute never-center language and claims about algorithmic social-media crops are deliberately omitted. The upstream skill has not been installed as executable tooling and no external instruction scripts were executed.
+
+Official cross-checks (copyright retained by Nikon/authors; no images or full articles redistributed; concise project-written guidance only):
+https://www.nikonusa.com/learn-and-explore/c/tips-and-techniques/5-easy-composition-guidelines
+https://www.nikonusa.com/learn-and-explore/c/tips-and-techniques/quick-tips-for-taking-better-portraits
+https://www.nikon.co.uk/en_GB/learn-and-explore/magazine/tips-and-tricks/elevate-your-group-portraiture-with-paul-santos
+
+Project-authored additions: uncertainty handling; group visibility and supported count; conservative color; actual CameraX capability limits; privacy/no-images and no autonomous remote commands; timing and fallback policy. These are engineering choices, not upstream claims.
+
+Runtime integration: assets/photography/v1/photography-guide.txt is loaded as the system prompt by PhotographyGuide for the existing DeepSeek / Qwen LlmClient request. Requests are user-initiated in AI mode, throttled to one per 15 seconds; no key means local-only optimization. Ordinary mode has no model calls. No image pixels are uploaded.

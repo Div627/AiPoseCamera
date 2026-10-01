@@ -1,0 +1,11 @@
+ZiYing Photography Guide 2.0 — project-maintained guidance, reviewed 2026-09-30
+Primary sources:
+Nikon / Diane Berkenfeld, 5 Easy Composition Guidelines
+https://www.nikonusa.com/learn-and-explore/c/tips-and-techniques/5-easy-composition-guidelines
+Used: optional thirds, symmetry/reflection exception, facing-direction space, leading lines and patterns. Original brief Chinese paraphrase; no source images reproduced.
+Fujifilm, A Guide to Portrait Lighting
+https://www.fujifilm-x.com/en-gb/learning-centre/a-guide-to-portrait-lighting/
+Used: shadow softness, relative light-source size, diffusion, direction and color mood. Original brief Chinese paraphrase; no source images reproduced.
+The articles retain their original copyright; this is not a redistribution of an upstream skill and has no Nikon/Fujifilm endorsement. Project scene rules, privacy constraints and device capability limits are explicitly project-authored.
+Replaces the former grimoire-core apply-rule-of-thirds adapter. No former skill or its license is packaged in runtime v2; historical provenance is archived in docs/archive/photography-v1.
+Integration: PhotographyGuide.ASSET is loaded and passed as the actual LlmClient system prompt. User-initiated AI-mode requests only, 15-second throttle, text context only. No photo upload. Missing keys leave local camera processing available. No claims of skill popularity or third-party skill installation.
