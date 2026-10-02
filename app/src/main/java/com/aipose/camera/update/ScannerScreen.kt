@@ -1,5 +1,9 @@
 package com.aipose.camera.update
 
+import androidx.activity.compose.BackHandler
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.LifecycleEventObserver
+import com.aipose.camera.ui.theme.BgDark
 import com.aipose.camera.diagnostics.Diagnostics
 import com.aipose.camera.diagnostics.DiagnosticStore.Event
 import com.aipose.camera.diagnostics.DiagnosticStore.Field
@@ -20,7 +24,6 @@ import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import com.aipose.camera.ui.theme.CameraDesign
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -34,7 +37,6 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -63,13 +65,15 @@ import java.util.concurrent.TimeUnit
 @OptIn(ExperimentalMaterial3Api::class)
 @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
 @Composable
-fun ScannerScreen(onResult: (String) -> Unit, onBack: () -> Unit) {
+fun ScannerScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val scope=rememberCoroutineScope()
     var menu by remember {mutableStateOf(false)}
     LaunchedEffect(Unit) {Diagnostics.event(Event.SCANNER_OPEN)}
     val owner = LocalLifecycleOwner.current
-    val currentResult by rememberUpdatedState(onResult)
+    val updater: UpdateViewModel = viewModel()
+    val update by updater.state.collectAsState()
+    val currentResult by rememberUpdatedState<(String) -> Unit> { url -> updater.start(url) }
     val main = remember { ContextCompat.getMainExecutor(context) }
     var permission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) }
     val request = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { permission = it }
@@ -80,13 +84,30 @@ fun ScannerScreen(onResult: (String) -> Unit, onBack: () -> Unit) {
     var camera by remember { mutableStateOf<Camera?>(null) }
     var torch by remember { mutableStateOf(false) }
     var manual by remember { mutableStateOf(false) }
-    val allowScan by rememberUpdatedState(!manual)
+    val allowScan by rememberUpdatedState(!manual && update.phase == UpdatePhase.SCAN)
     var text by remember { mutableStateOf("") }
     var manualError by remember { mutableStateOf(false) }
     val view = remember { PreviewView(context).apply { scaleType = PreviewView.ScaleType.FILL_CENTER } }
     val session = remember(retry, permission) { ScanSession() }
 
-    DisposableEffect(permission, retry, owner) {
+    BackHandler(enabled = update.phase != UpdatePhase.SCAN) { updater.scanAgain(); retry++ }
+    DisposableEffect(owner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                permission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                updater.resumed()
+            }
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(update.phase) {
+        if (update.phase != UpdatePhase.SCAN) { camera?.cameraControl?.enableTorch(false); torch = false }
+    }
+
+    val scanActive = permission && update.phase == UpdatePhase.SCAN
+    DisposableEffect(scanActive, retry, owner) {
+        if (!scanActive) return@DisposableEffect onDispose {}
         val executor = Executors.newSingleThreadExecutor()
         val scanner = BarcodeScanning.getClient(BarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build())
         val future = ProcessCameraProvider.getInstance(context)
@@ -97,7 +118,7 @@ fun ScannerScreen(onResult: (String) -> Unit, onBack: () -> Unit) {
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build()
         var provider: ProcessCameraProvider? = null
         var lastLog=0L
-        if (permission) future.addListener({
+        if (scanActive) future.addListener({
             if (session.isActive()) view.doOnLayout {
                 if (!session.isActive()) return@doOnLayout
                 try {
@@ -106,7 +127,7 @@ fun ScannerScreen(onResult: (String) -> Unit, onBack: () -> Unit) {
                     analysis.targetRotation = view.display.rotation
                     preview.setSurfaceProvider(view.surfaceProvider)
                     analysis.setAnalyzer(executor) { frame ->
-                        if (!session.begin()) { frame.close(); return@setAnalyzer }
+                        if (!allowScan || !session.begin()) { frame.close(); return@setAnalyzer }
                         val image = frame.image
                         if (image == null) { frame.close(); session.finish(); return@setAnalyzer }
                         try {
@@ -160,9 +181,10 @@ fun ScannerScreen(onResult: (String) -> Unit, onBack: () -> Unit) {
         }
     }
 
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    Box(Modifier.fillMaxSize().background(BgDark)) {
         if(permission) AndroidView(factory={view},modifier=Modifier.fillMaxSize())
-        if(permission && !cameraFailed) Canvas(Modifier.fillMaxSize()) {
+        if (update.phase != UpdatePhase.SCAN) Box(Modifier.fillMaxSize().background(BgDark.copy(alpha = .45f)))
+        if(permission && !cameraFailed && update.phase == UpdatePhase.SCAN) Canvas(Modifier.fillMaxSize()) {
             val side=minOf(size.width*.7f,size.height*.36f)
             val left=(size.width-side)/2;val top=size.height*.43f-side/2
             val right=left+side;val bottom=top+side
@@ -188,10 +210,13 @@ fun ScannerScreen(onResult: (String) -> Unit, onBack: () -> Unit) {
                     }
                 }
                 IconButton(onClick=onBack,modifier=Modifier.align(Alignment.CenterStart)) {Icon(Icons.Default.Close,"返回相机",tint=Color.White)}
-                Text("扫一扫",color=Color.White,style=MaterialTheme.typography.titleMedium)
+                Text(if (update.phase == UpdatePhase.SCAN) "扫一扫" else "更新",color=Color.White,style=MaterialTheme.typography.titleMedium)
             }
             Spacer(Modifier.weight(1f))
             Column(Modifier.fillMaxWidth().padding(bottom=24.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+                if (update.phase != UpdatePhase.SCAN) {
+                    UpdateInlinePanel(update, updater::cancel, updater::retry, updater::install) { updater.scanAgain(); retry++ }
+                } else {
                 when {
                     !permission -> {
                         ScanIcon(Modifier.size(36.dp))
@@ -222,6 +247,7 @@ fun ScannerScreen(onResult: (String) -> Unit, onBack: () -> Unit) {
                     Spacer(Modifier.height(20.dp))
                 }
                 TextButton(onClick={manual=true}) {Text("使用更新链接",color=Color.White.copy(alpha=.7f),style=MaterialTheme.typography.labelMedium)}
+                }
             }
         }
     }

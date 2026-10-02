@@ -29,8 +29,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         apk_name = f"yingke-camera-{version}.apk"
         qr_name = f"install-qr-{version}.png"
+        lan_qr_name = f"install-lan-qr-{version}.png"
         allowed = {"/": "index.html", "/index.html": "index.html", "/version.json": "version.json",
-                   "/SHA256SUMS.txt": "SHA256SUMS.txt", "/" + apk_name: apk_name, "/" + qr_name: qr_name}
+                   "/SHA256SUMS.txt": "SHA256SUMS.txt", "/" + apk_name: apk_name, "/" + qr_name: qr_name, "/" + lan_qr_name: lan_qr_name}
         filename = allowed.get(urlsplit(self.path).path)
         if filename is None or not (ROOT / filename).is_file():
             self.send_error(404)
