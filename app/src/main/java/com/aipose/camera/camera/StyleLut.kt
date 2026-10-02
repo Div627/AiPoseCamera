@@ -5,10 +5,13 @@ import kotlin.math.roundToInt
 /** Shared 3D color cube for saved pixels, thumbnails and GPU preview. */
 class StyleLut(val colors:IntArray,val size:Int=17) {
     init {require(size>=2 && colors.size==size*size*size)}
+    private val lower=IntArray(256){(it*(size-1)/255f).toInt()}
+    private val upper=IntArray(256){minOf(lower[it]+1,size-1)}
+    private val fraction=FloatArray(256){it*(size-1)/255f-lower[it]}
     fun apply(pixel:Int):Int {
-        val r=(pixel ushr 16 and 255)*(size-1)/255f;val g=(pixel ushr 8 and 255)*(size-1)/255f;val b=(pixel and 255)*(size-1)/255f
-        val r0=r.toInt();val g0=g.toInt();val b0=b.toInt();val r1=minOf(r0+1,size-1);val g1=minOf(g0+1,size-1);val b1=minOf(b0+1,size-1)
-        val x=r-r0;val y=g-g0;val z=b-b0
+        val r=pixel ushr 16 and 255;val g=pixel ushr 8 and 255;val b=pixel and 255
+        val r0=lower[r];val g0=lower[g];val b0=lower[b];val r1=upper[r];val g1=upper[g];val b1=upper[b]
+        val x=fraction[r];val y=fraction[g];val z=fraction[b]
         val p000=colors[g0*size*size+b0*size+r0];val p100=colors[g0*size*size+b0*size+r1]
         val p010=colors[g1*size*size+b0*size+r0];val p110=colors[g1*size*size+b0*size+r1]
         val p001=colors[g0*size*size+b1*size+r0];val p101=colors[g0*size*size+b1*size+r1]

@@ -14,6 +14,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.aipose.camera.camera.CameraScreen
 import com.aipose.camera.camera.CameraMode
+import com.aipose.camera.camera.RecentPhotoState
+import androidx.compose.ui.platform.LocalContext
 import com.aipose.camera.update.UpdateScreen
 import com.aipose.camera.ui.theme.AiPoseTheme
 import com.aipose.camera.update.ScannerScreen
@@ -34,12 +36,14 @@ class MainActivity : ComponentActivity() {
 private fun AppNav() {
     val nav = rememberNavController()
     var cameraMode by remember {mutableStateOf(CameraMode.LANDSCAPE)}
+    val context = LocalContext.current
+    val photos = remember { RecentPhotoState(context.applicationContext) }
     // 扫码结果进入独立更新页，不再经过设置页。
     var pendingScanUrl by rememberSaveable { mutableStateOf<String?>(null) }
 
     NavHost(navController = nav, startDestination = "camera") {
         composable("camera") {
-            CameraScreen(cameraMode,onModeChanged={cameraMode=it},onOpenScanner = { nav.navigate("scanner") })
+            CameraScreen(cameraMode, photos, onModeChanged={cameraMode=it},onOpenScanner = { nav.navigate("scanner") })
         }
         composable("update") {
             UpdateScreen(

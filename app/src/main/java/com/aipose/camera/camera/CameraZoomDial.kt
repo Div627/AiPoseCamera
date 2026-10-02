@@ -24,10 +24,13 @@ private fun zoomLabel(v:Float)=if(abs(v-v.roundToInt())<.04f) v.roundToInt().toS
 
 @Composable
 fun CameraZoomDial(value:Float,min:Float,max:Float,enabled:Boolean,expanded:Boolean,onExpanded:(Boolean)->Unit,onZoom:(Float)->Unit) {
+    val shortcuts=remember(min,max){ZoomScale.quickPresets(min,max)}
+    val visibleShortcuts = if (shortcuts.any {abs(value-it)<.07f}) shortcuts
+        else (shortcuts.take(2) + value).distinct().sorted()
     val currentValue by rememberUpdatedState(value)
     val currentZoom by rememberUpdatedState(onZoom)
     val currentExpand by rememberUpdatedState(onExpanded)
-    var dragPosition by remember {mutableStateOf(0f)}
+    var dragPosition by remember {mutableFloatStateOf(0f)}
     val gesture=Modifier.pointerInput(min,max,enabled) {
         if(enabled && max>min) detectDragGestures(
             onDragStart={dragPosition=ZoomScale.position(currentValue,min,max);currentExpand(true)},
@@ -67,20 +70,16 @@ fun CameraZoomDial(value:Float,min:Float,max:Float,enabled:Boolean,expanded:Bool
                 }
                 drawLine(CameraYellow,Offset(center.x,center.y-radius-3.dp.toPx()),Offset(center.x,center.y-radius+23.dp.toPx()),3.dp.toPx(),cap=androidx.compose.ui.graphics.StrokeCap.Round)
             }
-            TextButton(onClick={onExpanded(false)},modifier=Modifier.height(36.dp)) {Text("${zoomLabel(value)}×  ·  收起",color=CameraYellow)}
+            TextButton(onClick={onExpanded(false)},modifier=Modifier.heightIn(min=48.dp)) {Text("${zoomLabel(value)}×  ·  收起",color=CameraYellow)}
         }
         Row(Modifier.fillMaxWidth().then(gesture),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically) {
-            ZoomScale.presets(min,max).forEach {preset->
+            visibleShortcuts.forEach {preset->
                 val selected=abs(value-preset)<.07f
                 TextButton(enabled=enabled,onClick={if(selected) onExpanded(!expanded) else onZoom(preset)},
-                    modifier=Modifier.size(44.dp).background(if(selected) Color.White.copy(alpha=.14f) else Color.Transparent,CircleShape)
+                    modifier=Modifier.size(48.dp).background(if(selected) Color.White.copy(alpha=.14f) else Color.Transparent,CircleShape)
                         .semantics {contentDescription="变焦 ${zoomLabel(preset)} 倍";this.selected=selected}) {
                     Text(zoomLabel(preset),color=if(selected) CameraYellow else Color.White,style=MaterialTheme.typography.labelLarge)
                 }
-            }
-            // The current ratio remains visible between lens presets and opens the wheel.
-            if(ZoomScale.presets(min,max).none {abs(value-it)<.07f}) TextButton(enabled=enabled,onClick={onExpanded(!expanded)}) {
-                Text("${zoomLabel(value)}×",color=CameraYellow)
             }
         }
     }

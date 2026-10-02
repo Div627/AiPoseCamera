@@ -42,6 +42,10 @@ class CountdownGate {
 
 /** CameraX zoom is centered. Off-center regions require explicit reframing before enlargement. */
 object SubjectFraming {
+    fun target(box: Box, preserveScene: Boolean): SubjectColor.Point {
+        val x=if(!preserveScene || box.width>.48f || box.height>.85f) .5f else if(box.cx<.5f) 1f/3 else 2f/3
+        return SubjectColor.Point(x,.5f)
+    }
     data class Box(val left:Float,val top:Float,val right:Float,val bottom:Float) {
         val width get()=right-left;val height get()=bottom-top
         val cx get()=(left+right)/2;val cy get()=(top+bottom)/2

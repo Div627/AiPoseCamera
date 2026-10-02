@@ -13,6 +13,9 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.getValue
 import com.aipose.camera.ui.theme.CameraDesign
+import com.aipose.camera.ui.theme.ShutterWhite
+import com.aipose.camera.ui.theme.TextPrimary
+import com.aipose.camera.ui.theme.BgDark
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,9 +29,9 @@ val CameraYellow = Color(0xFFFFD60A)
 fun CameraModes(current:CameraMode, enabled:Boolean, onChange:(CameraMode)->Unit) {
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.Center) {
         CameraMode.entries.forEach { mode ->
-            val tint by animateColorAsState(if(mode==current) CameraYellow else Color.White,tween(160),label="mode")
+            val tint by animateColorAsState(if(mode==current) CameraYellow else TextPrimary,tween(160),label="mode")
             TextButton(onClick={if(mode!=current) onChange(mode)},enabled=enabled,
-                modifier=Modifier.widthIn(min=96.dp).height(40.dp).semantics {selected=mode==current}) {
+                modifier=Modifier.widthIn(min=96.dp).height(48.dp).semantics {selected=mode==current}) {
                 Text(mode.label,color=tint,style=MaterialTheme.typography.labelLarge)
             }
         }
@@ -37,10 +40,10 @@ fun CameraModes(current:CameraMode, enabled:Boolean, onChange:(CameraMode)->Unit
 
 @Composable
 fun CameraShutter(enabled:Boolean,busy:Boolean,onClick:()->Unit) {
-    Box(Modifier.size(CameraDesign.Shutter).semantics {contentDescription=if(busy) "正在保存照片" else "拍照";role=Role.Button}
-        .clip(CircleShape).clickable(enabled=enabled,onClick=onClick).border(3.dp,Color.White,CircleShape).padding(7.dp)
-        .background(Color.White.copy(alpha=if(enabled) 1f else .4f),CircleShape),contentAlignment=Alignment.Center) {
-        if(busy) CircularProgressIndicator(Modifier.size(26.dp),color=Color.Black,strokeWidth=2.dp)
+    Box(Modifier.size(CameraDesign.Shutter).semantics {contentDescription=if(busy) "正在拍摄" else if(!enabled) "拍照暂不可用" else "拍照";role=Role.Button}
+        .clip(CircleShape).clickable(enabled=enabled,onClick=onClick).border(3.dp,ShutterWhite,CircleShape).padding(7.dp)
+        .background(ShutterWhite.copy(alpha=if(enabled) 1f else .4f),CircleShape),contentAlignment=Alignment.Center) {
+        if(busy) CircularProgressIndicator(Modifier.size(26.dp),color=BgDark,strokeWidth=2.dp)
     }
 }
 

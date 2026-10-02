@@ -13,4 +13,4 @@ enum class CameraMode(val label:String) {
     fun effectiveCount(detected:Int?):Int?=if(this==LANDSCAPE) 0 else detected
     fun permitsAutoCapture(detected:Int?):Boolean=when(this){PORTRAIT->detected in 1..4;LANDSCAPE->true}
 }
-enum class CameraPanel { NONE, TOOLS, POSES, FILTERS }
+enum class CameraPanel { NONE, TOOLS, POSES, FILTERS, REVIEW }

@@ -4,7 +4,7 @@ import com.aipose.camera.pose.Landmarks
 import com.aipose.camera.pose.PoseTemplate
 
 /** A null count means inference unavailable or at least one detection lacks reliable torso landmarks. */
-data class SceneObservation(val people:List<Landmarks>,val count:Int?,val signature:FloatArray)
+data class SceneObservation(val people:List<Landmarks>,val count:Int?,val signature:FloatArray, val faces: List<FaceRegion> = emptyList())
 
 object GroupFraming {
     fun zoom(people:List<Landmarks>,current:Float,min:Float,max:Float,targets:List<PoseTemplate>?=null):Float? {

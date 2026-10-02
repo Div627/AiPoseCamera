@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable fun GradeControls(style:PhotoStyle,onStyle:(PhotoStyle)->Unit,grade:ColorGrade,onGrade:(ColorGrade)->Unit,thumbnail:ImageBitmap?=null) {
     var advanced by remember {mutableStateOf(false)}
-    var family by remember {mutableStateOf(if(style.family==StyleFamily.NATURAL) StyleFamily.FUJI else style.family)}
+    var family by remember {mutableStateOf(style.family)}
     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
         StyleFamily.entries.forEach {f->FilterChip(selected=family==f,onClick={family=f},label={Text(f.label)})}
     }
