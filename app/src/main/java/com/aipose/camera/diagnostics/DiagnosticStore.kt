@@ -6,7 +6,7 @@ import org.json.JSONObject
 /** Numeric, explicitly named measurements only. Never accepts URLs, image data or credentials. */
 class DiagnosticStore(private val directory:File, private val limit:Long=256*1024) {
     enum class Event { APP_START, CAMERA_BIND, CAMERA_ERROR, MODEL_READY, MODEL_ERROR, FRAME, FRAME_ERROR, TAP_START, TAP_RESULT, TAP_ERROR, STYLE, CAPTURE, CAPTURE_ERROR, SCANNER_OPEN, SCANNER_FRAME, SCANNER_ERROR, SCAN_RESULT, UPDATE, UPDATE_ERROR, CRASH }
-    enum class Field { SDK, VERSION, MODE, MODEL, WIDTH, HEIGHT, ROTATION, DURATION_MS, RAW_PEOPLE, RELIABLE_PEOPLE, FACES, COUNT, POINTS, STALE, ACCEPTED, MASKS, STATUS, BYTES, STYLE, PERMISSION, MIN_ZOOM, MAX_ZOOM }
+    enum class Field { SDK, VERSION, PAGE_SIZE, MODE, MODEL, WIDTH, HEIGHT, ROTATION, DURATION_MS, RAW_PEOPLE, RELIABLE_PEOPLE, FACES, COUNT, POINTS, STALE, ACCEPTED, MASKS, STATUS, BYTES, STYLE, PERMISSION, MIN_ZOOM, MAX_ZOOM }
     @Synchronized fun append(event:Event, values:Map<Field,Number> = emptyMap(),error:Throwable?=null) {
         directory.mkdirs()
         val file=File(directory,"events.jsonl")

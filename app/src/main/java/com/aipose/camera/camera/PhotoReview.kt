@@ -76,8 +76,8 @@ fun RecentPhotoButton(photo: RecentPhoto?, enabled: Boolean = true, onClick: () 
     }
     Box(Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)).background(SurfaceElevated)
         .border(1.dp, CameraDesign.Border, RoundedCornerShape(12.dp))
-        .semantics { contentDescription = if (photo == null) "拍摄后在这里查看照片" else "查看最近照片"; role = Role.Button }
-        .clickable(enabled = enabled && photo != null, onClick = onClick), contentAlignment = Alignment.Center) {
+        .semantics { contentDescription = if (photo == null) "打开相册" else "查看最近照片"; role = Role.Button }
+        .clickable(enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
         if (image != null) Image(image!!, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         else Icon(Icons.Outlined.Photo, null, tint = TextSecondary)
         if (photo?.processing == true) CircularProgressIndicator(Modifier.size(18.dp), color = TextPrimary, strokeWidth = 2.dp)
@@ -85,7 +85,7 @@ fun RecentPhotoButton(photo: RecentPhoto?, enabled: Boolean = true, onClick: () 
 }
 
 @Composable
-fun PhotoReview(photo: RecentPhoto, onClose: () -> Unit) {
+fun PhotoReview(photo: RecentPhoto, onBrowse: () -> Unit, onClose: () -> Unit) {
     val context = LocalContext.current
     var original by remember { mutableStateOf(false) }
     val uri = if (original) photo.original else photo.display
@@ -99,7 +99,7 @@ fun PhotoReview(photo: RecentPhoto, onClose: () -> Unit) {
                 Text(if (original) "原片" else if (photo.processing) "正在生成成片" else "最近照片", style = MaterialTheme.typography.titleMedium)
                 IconButton(enabled = loaded && image != null, onClick = {
                     val share = Intent(Intent.ACTION_SEND).apply {
-                        type = "image/jpeg"; putExtra(Intent.EXTRA_STREAM, uri)
+                        type = context.contentResolver.getType(uri) ?: "image/jpeg"; putExtra(Intent.EXTRA_STREAM, uri)
                         clipData = ClipData.newRawUri("照片", uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                     runCatching { context.startActivity(Intent.createChooser(share, "分享照片")) }
@@ -110,6 +110,7 @@ fun PhotoReview(photo: RecentPhoto, onClose: () -> Unit) {
                 else if (!loaded) CircularProgressIndicator(color = TextPrimary)
                 else Text("照片暂时无法读取，可能已从相册删除", Modifier.padding(24.dp), color = TextSecondary)
             }
+            TextButton(onClick = onBrowse) { Text("查看相册") }
             if (photo.dimensions.isNotBlank()) Text(photo.dimensions, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
             if (photo.processing || photo.error != null) Text(photo.error ?: "原片已保存，可以继续拍摄", Modifier.padding(12.dp), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
             Row(Modifier.padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {

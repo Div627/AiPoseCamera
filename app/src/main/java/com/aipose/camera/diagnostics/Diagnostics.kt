@@ -26,10 +26,10 @@ object Diagnostics {
             runCatching {store?.append(Event.CRASH,error=error)}
             previous?.uncaughtException(thread,error) ?: android.os.Process.killProcess(android.os.Process.myPid())
         }
-        event(Event.APP_START,Field.SDK to Build.VERSION.SDK_INT,Field.VERSION to BuildConfig.VERSION_CODE)
+        event(Event.APP_START,Field.SDK to Build.VERSION.SDK_INT,Field.VERSION to BuildConfig.VERSION_CODE,Field.PAGE_SIZE to android.system.Os.sysconf(android.system.OsConstants._SC_PAGESIZE))
     }
     fun event(event:Event,vararg fields:Pair<Field,Number>) {worker.execute {runCatching {store?.append(event,fields.toMap())}}}
-    fun error(event:Event,error:Throwable) {worker.execute {runCatching {store?.append(event,error=error)}}}
+    fun error(event:Event,error:Throwable,vararg fields:Pair<Field,Number>) {worker.execute {runCatching {store?.append(event,fields.toMap(),error)}}}
     suspend fun export(context:Context) {
         try {
             val report=withContext(Dispatchers.IO) {

@@ -24,8 +24,8 @@ android {
         applicationId = "com.aipose.camera"
         minSdk = 26
         targetSdk = 34
-        versionCode = 19
-        versionName = "0.1.0-beta.6"
+        versionCode = 20
+        versionName = "0.1.0-beta.7"
         ndk { abiFilters += listOf("arm64-v8a") }
 
         buildConfigField("String", "DEEPSEEK_KEY", betaKey("DEEPSEEK_API_KEY"))
@@ -52,6 +52,7 @@ android {
         compose = true
         buildConfig = true
     }
+    androidResources { noCompress += listOf("task", "tflite") }
     packaging {
         resources.excludes += "META-INF/{AL2.0,LGPL2.1}"
     }
@@ -85,7 +86,7 @@ dependencies {
     implementation("androidx.camera:camera-view:$camerax")
 
     // MediaPipe Pose Landmarker（端上姿态检测）
-    implementation("com.google.mediapipe:tasks-vision:0.10.14") {
+    implementation("com.google.mediapipe:tasks-vision:0.10.32") {
         // Annotation processors are build-time tools, not Android runtime dependencies.
         exclude(group = "com.google.auto.value", module = "auto-value")
     }

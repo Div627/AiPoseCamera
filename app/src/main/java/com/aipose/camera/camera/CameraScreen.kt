@@ -165,6 +165,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 @Composable
 fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () -> Unit, onMode: (CameraMode) -> Unit) {
     val context = LocalContext.current
+    var selectedPhoto by remember { mutableStateOf<RecentPhoto?>(null) }
+    var reviewingSelection by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
 
@@ -210,6 +212,13 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
     val subjectRegion=remember {AtomicReference<SubjectColor.Region?>(null)}
     var subjectSession by remember {mutableStateOf(SubjectColor.Session())}
     var panel by remember {mutableStateOf(CameraPanel.NONE)}
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            selectedPhoto = RecentPhoto(0, uri)
+            reviewingSelection = true
+            panel = CameraPanel.REVIEW
+        }
+    }
     val filterPanel=panel==CameraPanel.FILTERS
     var compareOriginal by remember {mutableStateOf(false)}
     var filterThumbnail by remember {mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)}
@@ -522,7 +531,9 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
     val previewRenderer=remember {PreviewColorRenderer()}
     val previewLut=remember(style,grade,compareOriginal) {StyleLut.create(if(compareOriginal) PhotoStyle.ORIGINAL else style,if(compareOriginal) ColorGrade() else grade)}
     val faceDetector=remember {AtomicReference<FaceDetector?>(null)}
-    var modelFailed by remember {mutableStateOf(false)}
+    var poseModelFailed by remember {mutableStateOf(false)}
+    var faceModelFailed by remember {mutableStateOf(false)}
+    val modelFailed = poseModelFailed || faceModelFailed
     var modelAttempt by remember {mutableIntStateOf(0)}
     val landmarker = remember { AtomicReference<PoseLandmarker?>(null) }
     val analyzerExecutor = remember { Executors.newSingleThreadExecutor() }
@@ -535,14 +546,14 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
                         .setRunningMode(RunningMode.VIDEO).setNumPoses(5)
                         .setMinPoseDetectionConfidence(.5f).setMinPosePresenceConfidence(.5f).setMinTrackingConfidence(.5f).build())
             }.onSuccess {landmarker.set(it);Diagnostics.event(Event.MODEL_READY,Field.MODEL to 1)}
-                .onFailure {Diagnostics.error(Event.MODEL_ERROR,it)}
+                .onFailure {Diagnostics.error(Event.MODEL_ERROR,it,Field.MODEL to 1)}
             if(faceDetector.get()==null) runCatching {
                 FaceDetector.createFromOptions(context,FaceDetector.FaceDetectorOptions.builder()
                     .setBaseOptions(BaseOptions.builder().setModelAssetPath("face_detector_short_range.tflite").build())
                     .setRunningMode(RunningMode.VIDEO).setMinDetectionConfidence(.5f).build())
             }.onSuccess {faceDetector.set(it);Diagnostics.event(Event.MODEL_READY,Field.MODEL to 2)}
-                .onFailure {Diagnostics.error(Event.MODEL_ERROR,it)}
-            mainExecutor.execute {modelFailed=landmarker.get()==null || faceDetector.get()==null}
+                .onFailure {Diagnostics.error(Event.MODEL_ERROR,it,Field.MODEL to 2)}
+            mainExecutor.execute {poseModelFailed=landmarker.get()==null;faceModelFailed=faceDetector.get()==null}
         }
     }
     DisposableEffect(Unit) {
@@ -855,7 +866,9 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
                 selectingSubject -> "正在识别点击的物体…"
                 subjectBox!=null && compositionActive -> subjectMessage
                 compositionActive && mode==CameraMode.LANDSCAPE -> subjectMessage.ifBlank {"点击物体选择构图主体"}
-                mode==CameraMode.PORTRAIT && modelFailed && faces.isEmpty() && detected==null -> "识别暂不可用 · 可直接拍摄或在更多中重试"
+                mode==CameraMode.PORTRAIT && poseModelFailed && faceModelFailed -> "人物识别未启动 · 可按快门拍摄，轻点重试"
+                mode==CameraMode.PORTRAIT && poseModelFailed -> "姿态引导未启动 · 人脸检测仍可用，轻点重试"
+                mode==CameraMode.PORTRAIT && faceModelFailed -> "人脸检测未启动 · 姿态引导仍可用，轻点重试"
                 (autoCapture || compositionActive && mode==CameraMode.PORTRAIT) -> framingTip
                 !guidanceEnabled -> ""
                 level.roll?.let{kotlin.math.abs(it)>3f}==true -> "调整手机左右倾斜，让水平线变平"
@@ -865,7 +878,8 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
                 quality.available && quality.highlights>.20f -> quality.hint
                 else -> "稳住手机，检查画面四边后按快门"
             }
-            if(message.isNotBlank()) Row(Modifier.padding(horizontal=16.dp,vertical=6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+            if(message.isNotBlank()) Row(Modifier.padding(horizontal=16.dp,vertical=6.dp)
+                .clickable(enabled=mode==CameraMode.PORTRAIT && modelFailed) {poseModelFailed=false;faceModelFailed=false;modelAttempt++},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                 if(photoSaved) Icon(Icons.Outlined.CheckCircle,null,tint=Success,modifier=Modifier.size(16.dp))
                 Text(message,color=TextPrimary,style=MaterialTheme.typography.bodySmall,maxLines=3)
             }
@@ -904,7 +918,11 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
       }
       CameraModes(mode,!capturing){timer.cancel();onMode(it)}
       Row(Modifier.fillMaxWidth().padding(horizontal=28.dp,vertical=8.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
-          RecentPhotoButton(photos.latest,!capturing) {timer.cancel();autoCapture=false;faceGate.reset();sceneGate.reset();framing.reset();panel=CameraPanel.REVIEW}
+          RecentPhotoButton(photos.latest,!capturing) {
+              timer.cancel();autoCapture=false;faceGate.reset();sceneGate.reset();framing.reset()
+              if (photos.latest != null) {reviewingSelection=false;panel=CameraPanel.REVIEW}
+              else galleryLauncher.launch("image/*")
+          }
           CameraShutter(photos.canCapture && camera!=null,capturing) {if(timer.active) timer.cancel() else doManualCapture()}
           IconButton(enabled=!capturing,onClick={
               timer.cancel();clearComposition();subjectAutoArmed=false;subjectOriginalZoom=null;zoomDialExpanded=false
@@ -912,7 +930,9 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
           },modifier=Modifier.size(56.dp)) {Icon(Icons.Filled.Cameraswitch,"切换前后镜头",tint=Color.White,modifier=Modifier.size(30.dp))}
       }
     }
-    if(panel==CameraPanel.REVIEW) photos.latest?.let {photo->PhotoReview(photo){panel=CameraPanel.NONE}}
+    if(panel==CameraPanel.REVIEW) (if(reviewingSelection) selectedPhoto else photos.latest)?.let {photo->
+        PhotoReview(photo,onBrowse={galleryLauncher.launch("image/*")}) {panel=CameraPanel.NONE;selectedPhoto=null;reviewingSelection=false}
+    }
     if(posePanel) CameraSheet("姿势灵感",onClose={panel=CameraPanel.NONE}) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             (listOf<PoseCategory?>(null)+PoseCategory.entries).forEach {category->
@@ -955,7 +975,7 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
             TimerChoices(timerSeconds){timerSeconds=it}
             CameraToggle("九宫格",gridEnabled){gridEnabled=it}
             if(level.available) CameraToggle("水平辅助",levelEnabled){levelEnabled=it}
-            if(modelFailed) TextButton(onClick={modelFailed=false;modelAttempt++}) {Text("重试人物识别")}
+            if(modelFailed) TextButton(onClick={poseModelFailed=false;faceModelFailed=false;modelAttempt++}) {Text("重试人物识别")}
             TextButton(onClick={advancedCapture=!advancedCapture}) {Text(if(advancedCapture) "收起精细拍摄选项" else "精细拍摄选项")}
             if(advancedCapture) {
                 Text("场景提示",style=MaterialTheme.typography.titleSmall)
