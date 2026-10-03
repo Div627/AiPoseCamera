@@ -1,6 +1,6 @@
 # 映刻相机 · AiPoseCamera
 
-原生 Android 相机，当前版本 **0.1.0-beta.7**（versionCode 20）。使用 Kotlin、Jetpack Compose、CameraX 与本地 MediaPipe，目前针对小米 17 / ARM64 开发。正式 0.1.0 尚未发布。
+原生 Android 相机，当前版本 **0.1.0-beta.8**（versionCode 21）。使用 Kotlin、Jetpack Compose、CameraX 与本地 MediaPipe，目前针对小米 17 / ARM64 开发。正式 0.1.0 尚未发布。
 
 ## 功能
 

@@ -24,8 +24,8 @@ android {
         applicationId = "com.aipose.camera"
         minSdk = 26
         targetSdk = 34
-        versionCode = 20
-        versionName = "0.1.0-beta.7"
+        versionCode = 21
+        versionName = "0.1.0-beta.8"
         ndk { abiFilters += listOf("arm64-v8a") }
 
         buildConfigField("String", "DEEPSEEK_KEY", betaKey("DEEPSEEK_API_KEY"))
@@ -38,7 +38,7 @@ android {
             signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
     compileOptions {
