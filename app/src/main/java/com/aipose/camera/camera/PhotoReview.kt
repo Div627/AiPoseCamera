@@ -95,15 +95,15 @@ fun PhotoReview(photo: RecentPhoto, onBrowse: () -> Unit, onClose: () -> Unit) {
         Column(Modifier.fillMaxSize().background(BgDark).systemBarsPadding(), horizontalAlignment = Alignment.CenterHorizontally) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween) {
-                IconButton(onClick = onClose) { Icon(Icons.Outlined.Close, "返回拍摄") }
-                Text(if (original) "原片" else if (photo.processing) "正在生成成片" else "最近照片", style = MaterialTheme.typography.titleMedium)
+                IconButton(onClick = onClose) { Icon(Icons.Outlined.Close, "返回拍摄", tint = TextPrimary) }
+                Text(if (original) "原片" else if (photo.processing) "正在生成成片" else "最近照片", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
                 IconButton(enabled = loaded && image != null, onClick = {
                     val share = Intent(Intent.ACTION_SEND).apply {
                         type = context.contentResolver.getType(uri) ?: "image/jpeg"; putExtra(Intent.EXTRA_STREAM, uri)
                         clipData = ClipData.newRawUri("照片", uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                     runCatching { context.startActivity(Intent.createChooser(share, "分享照片")) }
-                }) { Icon(Icons.Outlined.Share, "分享照片") }
+                }) { Icon(Icons.Outlined.Share, "分享照片", tint = if (loaded && image != null) TextPrimary else TextSecondary) }
             }
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 if (image != null) Image(image!!, if (original) "原片" else "成片", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)

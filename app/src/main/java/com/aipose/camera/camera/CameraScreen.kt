@@ -248,6 +248,8 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
     var flashMode by remember { mutableIntStateOf(ImageCapture.FLASH_MODE_OFF) }
     var score by remember { mutableIntStateOf(0) }
     var quality by remember { mutableStateOf(CaptureQuality.UNKNOWN) }
+    val landscapeGuidance=remember {LandscapeGuidance()}
+    var landscapeTip by remember {mutableStateOf<String?>(null)}
     var portraitHint by remember { mutableStateOf(PortraitGuidance.Hint(PortraitGuidance.Kind.UNKNOWN, "对准人物，轻点脸部确认对焦")) }
     var faces by remember { mutableStateOf<List<FaceRegion>>(emptyList()) }
     var detected by remember { mutableStateOf<Landmarks?>(null) }
@@ -423,6 +425,7 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
         val now=SystemClock.elapsedRealtime()
         lastResultAt=now
         quality=CaptureQuality.measure(observation.signature)
+        if(mode==CameraMode.LANDSCAPE) landscapeTip=landscapeGuidance.update(observation.signature,now)
         faces=observation.faces
         if(compositionActive && mode==CameraMode.LANDSCAPE && !selectingSubject && !zoomPending && !capturing && !timer.active && panel==CameraPanel.NONE) {
             subjectBox?.let {box->
@@ -761,6 +764,8 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
                                             } else null
                                             val roi=subjectRegion.get()
                                             val roiReading=roi?.let{SubjectColor.measure(pixels,it)}
+                                            val frameWidth = bmp.width
+                                            val frameHeight = bmp.height
                                             val input = BitmapImageBuilder(bmp).build()
                                             var faceCount:Int?=null
                                             val result = try {
@@ -778,7 +783,7 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
                                                             (box.bottom/bmp.height).coerceIn(0f,1f))
                                                     }.filter{it.valid}.sortedBy{it.cx}
                                                 }
-                                                if(mode==CameraMode.PORTRAIT) faceCount=cachedFaces.size
+                                                if(mode==CameraMode.PORTRAIT) faceCount=if(faceDetector.get()!=null) cachedFaces.size else null
                                                 pose
                                             } finally { input.close() }
                                             val rawPeople=if(mode==CameraMode.LANDSCAPE) emptyList<Landmarks>() else result?.landmarks()?.map { person ->
@@ -793,7 +798,7 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
                                             val count=if(mode==CameraMode.LANDSCAPE) 0 else PortraitDetection.count(rawPeople?.size,faceCount)
                                             if(started-lastDiagnostic>2000) {
                                                 lastDiagnostic=started
-                                                Diagnostics.event(Event.FRAME,Field.MODE to mode.ordinal,Field.WIDTH to bmp.width,Field.HEIGHT to bmp.height,
+                                                Diagnostics.event(Event.FRAME,Field.MODE to mode.ordinal,Field.WIDTH to frameWidth,Field.HEIGHT to frameHeight,
                                                     Field.ROTATION to img.imageInfo.rotationDegrees,Field.DURATION_MS to (SystemClock.elapsedRealtime()-started),
                                                     Field.RAW_PEOPLE to (rawPeople?.size ?: -1),Field.RELIABLE_PEOPLE to people.size,Field.FACES to (faceCount ?: -1),Field.COUNT to (count ?: -1))
                                             }
@@ -843,10 +848,10 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
         if(mode==CameraMode.PORTRAIT && portraitHint.kind==PortraitGuidance.Kind.FULL && peopleCount in 1..4 && selectedPose!=null && showGuide) {
             HumanPoseGuide(selectedPose,Modifier.fillMaxSize(),matched=peopleCount==1 && score>=78 && detected!=null && template.points.keys.all{detected?.containsKey(it)==true})
         }
-        FramingGuides(gridEnabled || (mode==CameraMode.LANDSCAPE && compositionActive),level,Modifier.fillMaxSize())
+        FramingGuides(gridEnabled || (mode==CameraMode.LANDSCAPE && (compositionActive || guidanceEnabled && landscapeTip!=null)),level,Modifier.fillMaxSize())
         if(compositionActive && panel==CameraPanel.NONE && !selectingSubject && (compositionAnalyzing || subjectBox!=null)) CompositionOverlay(compositionAnalyzing,subjectBox,compositionTarget,Modifier.fillMaxSize())
         if(mode==CameraMode.PORTRAIT && panel==CameraPanel.NONE && !capturing) {
-            if(referenceEnabled && selectedPose!=null && portraitHint.kind in listOf(PortraitGuidance.Kind.FULL,PortraitGuidance.Kind.UNKNOWN)) {
+            if(referenceEnabled && selectedPose!=null && portraitHint.kind==PortraitGuidance.Kind.FULL) {
                 PoseReferenceCard(selectedPose,{timer.cancel();panel=CameraPanel.POSES},Modifier.align(Alignment.TopStart).padding(12.dp))
             } else TextButton(onClick={timer.cancel();panel=CameraPanel.POSES},modifier=Modifier.align(Alignment.TopStart).padding(8.dp)) {
                 Text("姿势灵感",color=TextPrimary)
@@ -874,6 +879,7 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
                 level.roll?.let{kotlin.math.abs(it)>3f}==true -> "调整手机左右倾斜，让水平线变平"
                 quality.available && !quality.permitsAutomatic -> quality.hint
                 mode==CameraMode.PORTRAIT -> portraitHint.message
+                landscapeTip!=null && intent==TravelIntent.AUTO -> landscapeTip!!
                 intent!=TravelIntent.AUTO -> TravelGuidance.next(intent,0,null,level.roll,"").substringAfter("：")
                 quality.available && quality.highlights>.20f -> quality.hint
                 else -> "稳住手机，检查画面四边后按快门"

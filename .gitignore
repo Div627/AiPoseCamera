@@ -31,3 +31,6 @@ distribution/
 /tools/cloudflared
 /design/
 /DELIVERY*.md
+
+# Replay fixtures and isolated Android runtime
+.local-validation/

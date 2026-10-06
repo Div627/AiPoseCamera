@@ -22,11 +22,17 @@ data class ColorGrade(val strength:Float=1f,val postEv:Float=0f,val contrast:Flo
     }
     fun curve(value:Float):Float {
         val v=value.coerceIn(0f,1f)
-        return (v+shadows.coerceIn(-1f,1f)*.18f*(1-v)*(1-v)+highlights.coerceIn(-1f,1f)*.18f*v*v).coerceIn(0f,1f)
+        return (v+shadows.coerceIn(-1f,1f)*.6f*v*(1-v)*(1-v)+highlights.coerceIn(-1f,1f)*.6f*v*v*(1-v)).coerceIn(0f,1f)
     }
     fun lut()=IntArray(256){(curve(it/255f)*255).roundToInt()}
     fun transform(pixel:Int,matrix:FloatArray,lut:IntArray):Int {
         val p=PhotoStyle.transform(pixel,matrix)
-        return (p and -0x1000000) or (lut[p ushr 16 and 255] shl 16) or (lut[p ushr 8 and 255] shl 8) or lut[p and 255]
+        val r=p ushr 16 and 255;val g=p ushr 8 and 255;val b=p and 255
+        val luminance=(.213f*r+.715f*g+.072f*b).roundToInt().coerceIn(0,255)
+        if(luminance==0) return p
+        // One luminance gain preserves channel ratios, and cannot create new channel clipping.
+        val gain=minOf(lut[luminance].toFloat()/luminance,(if(maxOf(r,g,b)<255) 254f else 255f)/maxOf(r,g,b).coerceAtLeast(1))
+        fun adjusted(value:Int)=(value*gain).roundToInt().coerceIn(0,255)
+        return (p and -0x1000000) or (adjusted(r) shl 16) or (adjusted(g) shl 8) or adjusted(b)
     }
 }

@@ -16,3 +16,13 @@
     <init>(int, byte[]);
 }
 -keep class com.google.mediapipe.framework.ProtoUtil$SerializedMessage { *; }
+
+# Protobuf Lite resolves generated field names reflectively during graph serialization.
+# Source: https://github.com/protocolbuffers/protobuf/blob/main/java/lite/proguard.pgcfg
+-keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite {
+    <fields>;
+}
+
+# Flogger's caller discovery depends on intact class names and stack frames.
+# Keep the small logging dependency rather than allowing R8 to inline its stack walk.
+-keep class com.google.common.flogger.** { *; }
