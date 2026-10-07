@@ -6,8 +6,8 @@ import androidx.compose.ui.graphics.Color
 val BgDark = Color(0xFF0B0B0D)
 val SurfaceDark = Color(0xFF1C1C1E)
 val SurfaceElevated = Color(0xFF2C2C2E)
-val Accent = Color(0xFFFFD60A)       // 选中与主动作
-val AccentSoft = Color(0xFFFFE680)
+val Accent = Color(0xFFF5F5F7)       // 单色选中与主动作
+val AccentSoft = Color(0xFFB8B8BD)
 val Success = Color(0xFF75E6B4)      // 对齐成功
 val Warn = Color(0xFFFBBF24)         // 接近对齐
 val TextPrimary = Color(0xFFF5F5F7)

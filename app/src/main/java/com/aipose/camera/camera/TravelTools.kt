@@ -86,7 +86,7 @@ data class LevelReading(val available:Boolean,val roll:Float?)
             val center=Offset(size.width/2,size.height*.48f);val half=48.dp.toPx();val angle=(-roll).coerceIn(-45f,45f)*Math.PI/180
             val delta=Offset((half*kotlin.math.cos(angle)).toFloat(),(half*kotlin.math.sin(angle)).toFloat())
             drawLine(Color.White.copy(alpha=.5f),center-Offset(half,0f),center+Offset(half,0f),2.dp.toPx())
-            drawLine(if(kotlin.math.abs(roll)<2f) CameraYellow else Color.White,center-delta,center+delta,3.dp.toPx())
+            drawLine(if(kotlin.math.abs(roll)<2f) CameraAccent else Color.White,center-delta,center+delta,3.dp.toPx())
         }
     }
 }

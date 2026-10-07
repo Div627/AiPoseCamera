@@ -45,7 +45,7 @@ fun MarkdownText(text: String) {
             val scroll=if(block.code || block.table) Modifier.horizontalScroll(rememberScrollState()) else Modifier
             ClickableText(block.text,Modifier.fillMaxWidth().then(scroll).then(
                 if(block.code) Modifier.background(Color(0xff202126)).padding(12.dp) else Modifier),
-                style=when {block.heading==1 -> MaterialTheme.typography.titleLarge;block.heading>1 -> MaterialTheme.typography.titleMedium;else -> MaterialTheme.typography.bodyLarge}.copy(
+                style=when {block.heading==1 -> MaterialTheme.typography.titleMedium;block.heading>1 -> MaterialTheme.typography.titleSmall;else -> MaterialTheme.typography.bodyLarge}.copy(
                     color=MaterialTheme.colorScheme.onSurface,fontFamily=if(block.code || block.table) FontFamily.Monospace else FontFamily.Default),
                 onClick={offset -> block.text.getStringAnnotations("url",offset,offset).firstOrNull()?.item?.let {uri ->
                     if(uri.startsWith("https://") || uri.startsWith("http://")) runCatching {links.openUri(uri)}

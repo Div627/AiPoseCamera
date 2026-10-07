@@ -9,13 +9,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.aipose.camera.ui.theme.BgDark
-import com.aipose.camera.ui.theme.Success
+import com.aipose.camera.ui.theme.TextPrimary
 
 @Composable
 fun CameraToggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth().heightIn(min=56.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
         Text(label,Modifier.weight(1f).padding(end=12.dp),style=MaterialTheme.typography.bodyLarge)
         Switch(checked=checked,onCheckedChange=onChange,modifier=Modifier.semantics{contentDescription=label},
-            colors=SwitchDefaults.colors(checkedTrackColor=Success,checkedThumbColor=BgDark))
+            colors=SwitchDefaults.colors(checkedTrackColor=TextPrimary,checkedThumbColor=BgDark))
     }
 }

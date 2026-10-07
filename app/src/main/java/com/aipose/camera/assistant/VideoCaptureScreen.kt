@@ -1,5 +1,6 @@
 package com.aipose.camera.assistant
 
+import com.aipose.camera.ui.theme.PrimaryButton as Button
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler

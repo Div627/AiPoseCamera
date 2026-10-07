@@ -1,5 +1,6 @@
 package com.aipose.camera.assistant
 
+import com.aipose.camera.ui.theme.PrimaryButton as Button
 import android.content.Intent
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
@@ -15,7 +16,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Folder
@@ -27,9 +27,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import com.aipose.camera.camera.PhotoStyle
@@ -54,17 +51,15 @@ fun AssistantScreen(model: AssistantViewModel,onBack:()->Unit,onPhoto:(ShootingP
         val shot=importing;importing=null
         if(uri!=null && shot!=null) model.importClip(shot,uri)
     }
-    Scaffold(topBar={TopAppBar(title={Column {Text("拍摄助手");Text(if(model.onlineAvailable) "AI 规划 · 项目保存在本机" else "本地规划 · 尚未接入云端 AI",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}},
+    Scaffold(topBar={TopAppBar(title={Column {Text("拍摄助手",style=MaterialTheme.typography.titleMedium);Text(if(model.onlineAvailable) "AI 规划" else "本地规划",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}},
         navigationIcon={IconButton(onClick=onBack){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"返回相机")}},
         actions={IconButton(enabled=!state.busy,onClick={projectsOpen=true}){Icon(Icons.Outlined.Folder,"本地项目")};IconButton(enabled=!state.busy,onClick={model.newProject()}){Icon(Icons.Outlined.Add,"新对话")}})},
         bottomBar={Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal=16.dp,vertical=8.dp)) {
             if(state.exporting) Row(verticalAlignment=Alignment.CenterVertically) {Text("正在本机合成，原素材保留",Modifier.weight(1f));TextButton(onClick=model::cancelExport){Text("取消")}}
-            else if(state.busy) Row(verticalAlignment=Alignment.CenterVertically) {Text("正在处理…",Modifier.weight(1f));if(state.replying) TextButton(onClick=model::stopReply){Text("停止回复")}}
-            Row(verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(input,{input=it},Modifier.weight(1f),placeholder={Text("说说想拍什么")},maxLines=4,
-                    keyboardOptions=KeyboardOptions(imeAction=ImeAction.Send),keyboardActions=KeyboardActions(onSend={if(input.isNotBlank() && !state.busy){model.send(input);input=""}}),shape=RoundedCornerShape(22.dp))
-                FilledIconButton(enabled=input.isNotBlank() && !state.busy && state.ready,onClick={model.send(input);input=""},modifier=Modifier.size(52.dp)){Icon(Icons.AutoMirrored.Outlined.Send,"发送")}
-            }
+            else if(state.busy) Text(if(state.replying) "正在回复…" else "正在处理…",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(bottom=8.dp))
+            AssistantComposer(input,{input=it},input.isNotBlank() && !state.busy && state.ready,state.replying,
+                onSend={model.send(input);input=""},onStop=model::stopReply)
+
         }}) {padding ->
         val listState=androidx.compose.foundation.lazy.rememberLazyListState()
         val messages=project.messages.takeLast(visible)
@@ -82,12 +77,13 @@ fun AssistantScreen(model: AssistantViewModel,onBack:()->Unit,onPhoto:(ShootingP
             if(!state.ready && state.error!=null) item {TextButton(onClick=model::reload){Text("重新读取本地项目")}}
             if(messages.isEmpty() && state.ready) item {
                 Column(verticalArrangement=Arrangement.spacedBy(16.dp)) {
-                    Text("把想法，变成下一张照片",style=MaterialTheme.typography.headlineSmall)
-                    Text("拍照方案可以直接打开相机。Vlog 按镜头逐段拍，再在手机上合成。",color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(40.dp))
+                    Text("想拍点什么？",style=MaterialTheme.typography.headlineSmall)
+                    Text("说说地点和想法，我来安排拍摄。",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
                     listOf("我到冰岛了，想拍自然的风景照","拍一段从孤独到有生命力的个人 Vlog","想拍自然、有环境感的人像").forEach {example ->
-                        OutlinedButton(enabled=!state.busy,onClick={model.send(example)},modifier=Modifier.fillMaxWidth()){Text(example)}
+                        TextButton(enabled=!state.busy,onClick={model.send(example)},contentPadding=PaddingValues(horizontal=0.dp,vertical=8.dp)){Text(example,style=MaterialTheme.typography.bodyMedium)}
                     }
-                    Text("聊天、素材和作品保存在本机。卸载会移除本地项目，喜欢的成片请保存到相册。",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(if(model.onlineAvailable) "项目保存在本机" else "本地规划，尚未连接云端 AI",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if(project.messages.size>visible) item {TextButton(onClick={visible+=40}){Text("加载更早的对话")}}
@@ -107,31 +103,30 @@ fun AssistantScreen(model: AssistantViewModel,onBack:()->Unit,onPhoto:(ShootingP
             project.plan?.let {plan ->
                 item(key="plan-${plan.id}") {
                     Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                        HorizontalDivider()
-                        Text(plan.title,style=MaterialTheme.typography.titleLarge)
-                        Text(plan.description,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(plan.title,style=MaterialTheme.typography.titleMedium)
+                        Text(plan.description,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
                         if(plan.kind=="photo") {
                             Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                                 listOf(PhotoStyle.SCENIC to "自然",PhotoStyle.ICELAND to "冷调",PhotoStyle.K_GOLD to "暖调",PhotoStyle.A_APX to "黑白").forEach {(style,label) ->
                                     FilterChip(selected=plan.style==style,enabled=!state.busy,onClick={model.selectStyle(style)},label={Text(label)})
                                 }
                             }
-                            Button(enabled=!state.busy,onClick={onPhoto(plan)},modifier=Modifier.fillMaxWidth()){Text("开始拍摄 · ${plan.style.label}")}
+                            Button(enabled=!state.busy,onClick={onPhoto(plan)},modifier=Modifier.fillMaxWidth()){Text("开始拍摄")}
                         }
-                        TextButton(onClick={placesOpen=true},enabled=!state.busy){Text("查询附近拍摄点")}
+                        TextButton(onClick={placesOpen=true},enabled=!state.busy){Text("去哪里拍")}
                     }
                 }
                 if(plan.kind=="video") {
                     items(plan.shots,key={"shot-${it.id}"},contentType={"shot"}) {shot ->
                         val clip=project.clips.firstOrNull {it.shotId==shot.id}
                         val valid=clip!=null && File(clip.file).exists()
-                        Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surfaceVariant) {
+                        Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surface) {
                             Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                                 Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                                     if(valid) ClipThumbnail(clip!!.file)
                                     Column(Modifier.weight(1f)){Text(shot.title,style=MaterialTheme.typography.titleMedium);Text(if(valid) "已填充 · ${clip!!.durationMs/1000} 秒" else if(clip!=null) "素材缺失，请重新选择" else "待拍摄，也可跳过",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
                                 }
-                                Text(shot.direction)
+                                Text(shot.direction,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
                                 Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
                                     TextButton(enabled=!state.busy,onClick={onRecord(shot)}){Text(if(valid) "重拍" else "拍这一段")}
                                     TextButton(enabled=!state.busy,onClick={importing=shot.id;importer.launch(arrayOf("video/*"))}){Text(if(valid) "换素材" else "从相册选")}
@@ -145,7 +140,7 @@ fun AssistantScreen(model: AssistantViewModel,onBack:()->Unit,onPhoto:(ShootingP
                         val filled=plan.shots.count {shot -> project.clips.any {it.shotId==shot.id && File(it.file).exists()} }
                         Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
                             Text("$filled / ${plan.shots.size} 段已准备 · 至少两段可成片",style=MaterialTheme.typography.bodySmall)
-                            Button(enabled=filled>=2 && !state.busy,onClick=model::generateVideo,modifier=Modifier.fillMaxWidth()){Text(if(state.exporting) "合成中…" else "在手机上生成视频")}
+                            Button(enabled=filled>=2 && !state.busy,onClick=model::generateVideo,modifier=Modifier.fillMaxWidth()){Text(if(state.exporting) "合成中…" else "生成视频")}
                             Text("按镜头顺序拼接，每段保留最多 5 秒，统一竖屏并保留原声。当前是本地粗剪，不做 AI 画面评分或自动配乐。",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }

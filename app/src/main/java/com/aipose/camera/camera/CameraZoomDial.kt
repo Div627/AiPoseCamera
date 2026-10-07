@@ -68,9 +68,9 @@ fun CameraZoomDial(value:Float,min:Float,max:Float,enabled:Boolean,expanded:Bool
                     val labelPoint=center+Offset(cos(angle),sin(angle))*(radius-37.dp.toPx())
                     drawContext.canvas.nativeCanvas.drawText(zoomLabel(preset),labelPoint.x,labelPoint.y+4.dp.toPx(),paint)
                 }
-                drawLine(CameraYellow,Offset(center.x,center.y-radius-3.dp.toPx()),Offset(center.x,center.y-radius+23.dp.toPx()),3.dp.toPx(),cap=androidx.compose.ui.graphics.StrokeCap.Round)
+                drawLine(CameraAccent,Offset(center.x,center.y-radius-3.dp.toPx()),Offset(center.x,center.y-radius+23.dp.toPx()),3.dp.toPx(),cap=androidx.compose.ui.graphics.StrokeCap.Round)
             }
-            TextButton(onClick={onExpanded(false)},modifier=Modifier.heightIn(min=48.dp)) {Text("${zoomLabel(value)}×  ·  收起",color=CameraYellow)}
+            TextButton(onClick={onExpanded(false)},modifier=Modifier.heightIn(min=48.dp)) {Text("${zoomLabel(value)}×  ·  收起",color=CameraAccent)}
         }
         Row(Modifier.fillMaxWidth().then(gesture),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically) {
             visibleShortcuts.forEach {preset->
@@ -78,7 +78,7 @@ fun CameraZoomDial(value:Float,min:Float,max:Float,enabled:Boolean,expanded:Bool
                 TextButton(enabled=enabled,onClick={if(selected) onExpanded(!expanded) else onZoom(preset)},
                     modifier=Modifier.size(48.dp).background(if(selected) Color.White.copy(alpha=.14f) else Color.Transparent,CircleShape)
                         .semantics {contentDescription="变焦 ${zoomLabel(preset)} 倍";this.selected=selected}) {
-                    Text(zoomLabel(preset),color=if(selected) CameraYellow else Color.White,style=MaterialTheme.typography.labelLarge)
+                    Text(zoomLabel(preset),color=if(selected) CameraAccent else Color.White,style=MaterialTheme.typography.labelLarge)
                 }
             }
         }

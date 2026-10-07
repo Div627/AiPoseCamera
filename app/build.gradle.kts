@@ -24,8 +24,8 @@ android {
         applicationId = "com.aipose.camera"
         minSdk = 26
         targetSdk = 34
-        versionCode = 23
-        versionName = "0.1.0-beta.10"
+        versionCode = 24
+        versionName = "0.1.0-beta.11"
         ndk { abiFilters += listOf("arm64-v8a") }
 
         buildConfigField("String", "DEEPSEEK_KEY", betaKey("DEEPSEEK_API_KEY"))

@@ -23,16 +23,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 
-val CameraYellow = Color(0xFFFFD60A)
+val CameraAccent = com.aipose.camera.ui.theme.Accent
 
 @Composable
 fun CameraModes(current:CameraMode, enabled:Boolean, onChange:(CameraMode)->Unit) {
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.Center) {
         CameraMode.entries.forEach { mode ->
-            val tint by animateColorAsState(if(mode==current) CameraYellow else TextPrimary,tween(160),label="mode")
+            val tint by animateColorAsState(if(mode==current) CameraAccent else com.aipose.camera.ui.theme.TextSecondary.copy(alpha=.7f),tween(160),label="mode")
             TextButton(onClick={if(mode!=current) onChange(mode)},enabled=enabled,
                 modifier=Modifier.widthIn(min=96.dp).height(48.dp).semantics {selected=mode==current}) {
-                Text(mode.label,color=tint,style=MaterialTheme.typography.labelLarge)
+                Text(mode.label,color=tint,style=MaterialTheme.typography.labelLarge, fontWeight=if(mode==current) androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Normal)
             }
         }
     }
@@ -51,7 +51,7 @@ fun CameraShutter(enabled:Boolean,busy:Boolean,onClick:()->Unit) {
 fun CameraZoom(value:Float,enabled:Boolean,onMinus:()->Unit,onPlus:()->Unit) {
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.Center) {
         TextButton(enabled=enabled,onClick=onMinus,modifier=Modifier.size(48.dp).semantics {contentDescription="缩小"}) {Text("−",color=Color.White)}
-        Text("${"%.1f".format(value)}×",color=CameraYellow,style=MaterialTheme.typography.labelLarge)
+        Text("${"%.1f".format(value)}×",color=CameraAccent,style=MaterialTheme.typography.labelLarge)
         TextButton(enabled=enabled,onClick=onPlus,modifier=Modifier.size(48.dp).semantics {contentDescription="放大"}) {Text("+",color=Color.White)}
     }
 }
@@ -60,7 +60,7 @@ fun CameraZoom(value:Float,enabled:Boolean,onMinus:()->Unit,onPlus:()->Unit) {
 @Composable
 fun CompositionIcon(active: Boolean, modifier: Modifier = Modifier.size(26.dp)) {
     androidx.compose.foundation.Canvas(modifier) {
-        val color=if(active) CameraYellow else Color.White
+        val color=if(active) CameraAccent else Color.White
         val s=size.width/26f;val stroke=1.7f*s
         fun line(x:Float,y:Float,a:Float,b:Float)=drawLine(color,androidx.compose.ui.geometry.Offset(x*s,y*s),androidx.compose.ui.geometry.Offset(a*s,b*s),stroke,cap=androidx.compose.ui.graphics.StrokeCap.Round)
         line(3f,9f,3f,4f);line(3f,4f,8f,4f);line(18f,4f,23f,4f);line(23f,4f,23f,9f)

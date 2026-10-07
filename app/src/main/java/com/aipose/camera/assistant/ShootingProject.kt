@@ -41,7 +41,7 @@ object LocalShootingPlanner {
             val title = if (portrait) "自然人像" else if (style == PhotoStyle.ICELAND) "克制冷调风景" else "自然纪实风景"
             val plan = ShootingPlan(kind = "photo", title = title, description = direction, style = style,
                 mode = if (portrait) CameraMode.PORTRAIT else CameraMode.LANDSCAPE)
-            return AssistantReply("## $title\n\n$direction\n\n- 风格：${style.label}，适度使用\n- 现场曝光继续自动保护高光\n- 原片与成片分别保存\n\n点击下面的方案开始拍摄。地点需要另外查询；本地规划不会推断你所在的具体位置。", plan)
+            return AssistantReply("先从**自然光和简单构图**开始。选好下面的风格就能拍；需要找地点时，点“去哪里拍”。", plan)
         }
         val transition = text.contains("孤独") || text.contains("生命") || text.contains("生机")
         val shots = if (transition) listOf(
@@ -62,6 +62,6 @@ object LocalShootingPlanner {
         val title = if (transition) "从孤独，到有生命力" else "我的旅行片刻"
         val plan = ShootingPlan(kind = "video", title = title,
             description = "六个镜头逐段填充；每段录 6–10 秒。合成取每段最多 5 秒，保留原声和原素材，可跳过或替换。", shots = shots)
-        return AssistantReply("## $title\n\n${plan.description}\n\n先用远景建立环境，再用细节与动作推进。情绪来自镜头内容和节奏，不只靠滤镜。\n\n已有素材也可以从相册填入。至少两段即可在手机上生成草稿。", plan)
+        return AssistantReply("先用**远景**建立环境，再用细节与动作推进。按下面的镜头逐段拍，也可以从相册选素材；至少两段就能生成草稿。", plan)
     }
 }

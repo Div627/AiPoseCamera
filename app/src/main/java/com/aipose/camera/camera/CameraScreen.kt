@@ -195,7 +195,7 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
     var levelEnabled by remember {mutableStateOf(true)}
     var guidanceEnabled by remember {mutableStateOf(true)}
     var referenceEnabled by remember {mutableStateOf(true)}
-    var maintenanceOpen by remember {mutableStateOf(false)}
+    var moreMenuOpen by remember {mutableStateOf(false)}
     var advancedCapture by remember {mutableStateOf(false)}
     val level=rememberLevel(levelEnabled)
     var intent by remember {mutableStateOf(TravelIntent.AUTO)}
@@ -225,7 +225,7 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
     val filterPreviewEnabled=remember {AtomicBoolean(false)}
     filterPreviewEnabled.set(filterPanel)
     val analysisPaused=remember {AtomicBoolean(false)}
-    analysisPaused.set(panel==CameraPanel.REVIEW)
+    analysisPaused.set(panel==CameraPanel.REVIEW || panel==CameraPanel.TOOLS)
     var subjectOriginalZoom by remember {mutableStateOf<Float?>(null)}
     var subjectAutoArmed by remember {mutableStateOf(false)}
     var subjectMessage by remember {mutableStateOf("")}
@@ -650,7 +650,13 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
                 Icon(when(flashMode){ImageCapture.FLASH_MODE_ON->Icons.Filled.FlashOn;ImageCapture.FLASH_MODE_AUTO->Icons.Filled.FlashAuto;else->Icons.Filled.FlashOff},"闪光灯：${when(flashMode){ImageCapture.FLASH_MODE_ON->"开";ImageCapture.FLASH_MODE_AUTO->"自动";else->"关"}}",tint=Color.White)
             }
             TextButton(enabled=!capturing,onClick={timer.cancel();onOpenAssistant()}) {Text("拍摄助手",color=TextPrimary,style=MaterialTheme.typography.titleMedium)}
-            IconButton(enabled=!capturing,onClick={timer.cancel();panel=CameraPanel.TOOLS}) {Icon(Icons.Outlined.MoreHoriz,"更多拍摄设置",tint=TextPrimary)}
+            Box {
+                IconButton(enabled=!capturing,onClick={moreMenuOpen=true}) {Icon(Icons.Outlined.MoreHoriz,"更多",tint=TextPrimary)}
+                androidx.compose.material3.DropdownMenu(expanded=moreMenuOpen,onDismissRequest={moreMenuOpen=false}) {
+                    androidx.compose.material3.DropdownMenuItem(text={Text("扫一扫")},leadingIcon={ScanIcon()},onClick={moreMenuOpen=false;timer.cancel();onOpenScanner()})
+                    androidx.compose.material3.DropdownMenuItem(text={Text("设置")},leadingIcon={Icon(Icons.Default.Tune,null)},onClick={moreMenuOpen=false;timer.cancel();panel=CameraPanel.TOOLS})
+                }
+            }
         }
       Box(Modifier.fillMaxWidth().weight(1f).onSizeChanged { previewSize = it.width to it.height }) {
         // ---- 相机预览 + 绑定（镜头切换时重建）----
@@ -867,9 +873,9 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
             }
         }
         if(subjectEdges.isNotEmpty()) Canvas(Modifier.fillMaxSize()) {
-            subjectEdges.forEach {edge->drawLine(CameraYellow.copy(alpha=.85f),Offset(edge.from.x*size.width,edge.from.y*size.height),Offset(edge.to.x*size.width,edge.to.y*size.height),1.3.dp.toPx())}
+            subjectEdges.forEach {edge->drawLine(CameraAccent.copy(alpha=.85f),Offset(edge.from.x*size.width,edge.from.y*size.height),Offset(edge.to.x*size.width,edge.to.y*size.height),1.3.dp.toPx())}
         }
-        if(timer.active) TextButton(onClick={timer.cancel()},modifier=Modifier.align(Alignment.Center)) {Text("${timer.seconds} · 取消",style=MaterialTheme.typography.headlineLarge,color=CameraYellow)}
+        if(timer.active) TextButton(onClick={timer.cancel()},modifier=Modifier.align(Alignment.Center)) {Text("${timer.seconds} · 取消",style=MaterialTheme.typography.headlineLarge,color=CameraAccent)}
 
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(CameraDesign.BottomScrim).padding(horizontal=8.dp,vertical=4.dp),horizontalAlignment=Alignment.CenterHorizontally) {
             val message=cameraError ?: when {
@@ -900,7 +906,7 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
             }
             if(!armed && autoCapture && !capturing) TextButton(onClick={
                 timer.cancel();armed=true;photoSaved=false;framing.reset(rearm=true);sceneGate.reset();faceGate.reset();progress=0f
-            }) {Text("再拍一张",color=CameraYellow)}
+            }) {Text("再拍一张",color=CameraAccent)}
             if(compositionActive && mode==CameraMode.LANDSCAPE && subjectBox!=null) Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 listOf(true to "保留景物",false to "突出主体").forEach {(preserve,label)->
                     FilterChip(selected=preserveScene==preserve,onClick={
@@ -910,8 +916,8 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
             }
             if(subjectOriginalZoom!=null) TextButton(enabled=!capturing,onClick={
                 timer.cancel();subjectAutoArmed=false;autoCapture=false;subjectOriginalZoom?.let{setZoom(it)};subjectOriginalZoom=null
-            },modifier=Modifier.heightIn(min=48.dp)) {Text("撤销自动放大",color=CameraYellow)}
-            if(progress>0f && armed && (autoCapture || subjectAutoArmed) && !timer.active && !selectingSubject) LinearProgressIndicator(progress={progress},modifier=Modifier.fillMaxWidth().padding(top=4.dp),color=CameraYellow)
+            },modifier=Modifier.heightIn(min=48.dp)) {Text("撤销自动放大",color=CameraAccent)}
+            if(progress>0f && armed && (autoCapture || subjectAutoArmed) && !timer.active && !selectingSubject) LinearProgressIndicator(progress={progress},modifier=Modifier.fillMaxWidth().padding(top=4.dp),color=CameraAccent)
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 if(!zoomDialExpanded) TextButton(enabled=!capturing,onClick={timer.cancel();panel=CameraPanel.FILTERS;compareOriginal=false;sceneGate.reset();framing.reset()},modifier=Modifier.width(72.dp).heightIn(min=48.dp)) {
                     Text("风格",color=TextPrimary,style=MaterialTheme.typography.labelLarge)
@@ -926,7 +932,7 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
                         subjectMessage=if(mode==CameraMode.LANDSCAPE) "点击物体选择构图主体" else "正在分析人像构图…"
                     }
                 },modifier=Modifier.width(72.dp).heightIn(min=48.dp).semantics {contentDescription=if(compositionActive) "退出 AI 构图" else "AI 构图";selected=compositionActive}) {
-                    Text("构图",color=if(compositionActive) CameraYellow else TextPrimary,style=MaterialTheme.typography.labelLarge)
+                    Text("构图",color=if(compositionActive) CameraAccent else TextPrimary,style=MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -985,46 +991,41 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
             TextButton(onClick={compareOriginal=!compareOriginal}) {Text(if(compareOriginal) "返回风格预览" else "对比原色")}
         }
     }
-    if(optionsOpen) CameraSheet("拍摄设置",onClose={panel=CameraPanel.NONE}) {
-        Column(Modifier.verticalScroll(rememberScrollState())) {
-            CameraToggle("拍摄指引",guidanceEnabled){guidanceEnabled=it}
-            CameraToggle("稳定后自动拍摄",autoCapture){autoCapture=it;settings.autoCapture=it;groupZoomSession.reset();framing.reset(rearm=true);faceGate.reset();sceneGate.reset();armed=true}
-            if(mode==CameraMode.PORTRAIT) CameraToggle("姿势参考图",referenceEnabled){referenceEnabled=it}
-            Text("延时拍摄",Modifier.padding(top=12.dp,bottom=8.dp),style=MaterialTheme.typography.titleSmall)
-            TimerChoices(timerSeconds){timerSeconds=it}
-            CameraToggle("九宫格",gridEnabled){gridEnabled=it}
-            if(level.available) CameraToggle("水平辅助",levelEnabled){levelEnabled=it}
-            if(modelFailed) TextButton(onClick={poseModelFailed=false;faceModelFailed=false;modelAttempt++}) {Text("重试人物识别")}
-            TextButton(onClick={advancedCapture=!advancedCapture}) {Text(if(advancedCapture) "收起精细拍摄选项" else "精细拍摄选项")}
-            if(advancedCapture) {
-                Text("场景提示",style=MaterialTheme.typography.titleSmall)
-                Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-                    mode.intents.forEach {value->FilterChip(selected=intent==value,onClick={
-                        intent=value;clearComposition();subjectAutoArmed=false;framing.reset();sceneGate.reset();faceGate.reset();progress=0f
-                        if(value==TravelIntent.AURORA){autoCapture=false;autoStyle=false;style=PhotoStyle.ORIGINAL;grade=ColorGrade();flashMode=ImageCapture.FLASH_MODE_OFF;setZoom(1f)}
-                    },label={Text(value.label)})}
-                }
-                Text(intent.advice.substringAfter("："),style=MaterialTheme.typography.bodySmall,color=TextSecondary)
-                if(mode==CameraMode.PORTRAIT) {
-                    CameraToggle("叠加姿势轮廓",showGuide){showGuide=it}
-                    Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(4.dp)) {ReferenceStyle.entries.forEach {r->FilterChip(selected=referenceStyle==r,onClick={referenceStyle=r;templateIndex=0;groupZoomSession.reset();framing.reset();sceneGate.reset();progress=0f},label={Text(r.label)})}}
-                }
-                ExposureControl(camera,onManual={autoExposure=false;zoomSettledAt=SystemClock.elapsedRealtime()+2000})
-                TextButton(onClick={autoExposure=true;sceneOptimizer.reset()}) {Text(if(autoExposure) "自动曝光已开启" else "恢复自动曝光")}
-                TextButton(onClick={timer.cancel();subjectAutoArmed=false;autoCapture=false;openNativeCamera(context)}) {Text("打开原生相机")}
+    if(optionsOpen) CameraSettingsPage(onBack={panel=CameraPanel.NONE}) {
+        CameraToggle("拍摄指引",guidanceEnabled){guidanceEnabled=it}
+        CameraToggle("稳定后自动拍摄",autoCapture){autoCapture=it;settings.autoCapture=it;groupZoomSession.reset();framing.reset(rearm=true);faceGate.reset();sceneGate.reset();armed=true}
+        if(mode==CameraMode.PORTRAIT) CameraToggle("姿势参考图",referenceEnabled){referenceEnabled=it}
+        Text("延时拍摄",Modifier.padding(top=12.dp,bottom=8.dp),style=MaterialTheme.typography.titleSmall)
+        TimerChoices(timerSeconds){timerSeconds=it}
+        CameraToggle("九宫格",gridEnabled){gridEnabled=it}
+        if(level.available) CameraToggle("水平辅助",levelEnabled){levelEnabled=it}
+        if(modelFailed) TextButton(onClick={poseModelFailed=false;faceModelFailed=false;modelAttempt++}) {Text("重试人物识别")}
+        TextButton(onClick={advancedCapture=!advancedCapture}) {Text(if(advancedCapture) "收起精细拍摄选项" else "精细拍摄选项")}
+        if(advancedCapture) {
+            Text("场景提示",style=MaterialTheme.typography.titleSmall)
+            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                mode.intents.forEach {value->FilterChip(selected=intent==value,onClick={
+                    intent=value;clearComposition();subjectAutoArmed=false;framing.reset();sceneGate.reset();faceGate.reset();progress=0f
+                    if(value==TravelIntent.AURORA){autoCapture=false;autoStyle=false;style=PhotoStyle.ORIGINAL;grade=ColorGrade();flashMode=ImageCapture.FLASH_MODE_OFF;setZoom(1f)}
+                },label={Text(value.label)})}
             }
-            HorizontalDivider(Modifier.padding(vertical=12.dp),color=CameraDesign.Border)
-            TextButton(onClick={maintenanceOpen=!maintenanceOpen}) {Text(if(maintenanceOpen) "收起更新与诊断" else "更新与诊断")}
-            if(maintenanceOpen) {
-                Text("映刻 ${com.aipose.camera.BuildConfig.VERSION_NAME}",style=MaterialTheme.typography.bodySmall,color=TextSecondary)
-                TextButton(onClick={timer.cancel();panel=CameraPanel.NONE;onOpenScanner()}) {Text("扫一扫更新")}
-                TextButton(onClick={scope.launch {Diagnostics.export(context)}}) {Text("导出诊断日志")}
-                if(savedResolution.isNotBlank()) Text("最近成片：$savedResolution",style=MaterialTheme.typography.bodySmall,color=TextSecondary)
-                if(settings.currentConfig().apiKey.isNotBlank()) {
-                    TextButton(enabled=!aiLoading,onClick={requestAiReview()}) {Text(if(aiLoading) "正在获取建议…" else "获取摄影建议")}
-                    if(aiReview.isNotBlank()) Text(aiReview)
-                }
+            Text(intent.advice.substringAfter("："),style=MaterialTheme.typography.bodySmall,color=TextSecondary)
+            if(mode==CameraMode.PORTRAIT) {
+                CameraToggle("叠加姿势轮廓",showGuide){showGuide=it}
+                Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(4.dp)) {ReferenceStyle.entries.forEach {r->FilterChip(selected=referenceStyle==r,onClick={referenceStyle=r;templateIndex=0;groupZoomSession.reset();framing.reset();sceneGate.reset();progress=0f},label={Text(r.label)})}}
             }
+            ExposureControl(camera,onManual={autoExposure=false;zoomSettledAt=SystemClock.elapsedRealtime()+2000})
+            TextButton(onClick={autoExposure=true;sceneOptimizer.reset()}) {Text(if(autoExposure) "自动曝光已开启" else "恢复自动曝光")}
+            TextButton(onClick={timer.cancel();subjectAutoArmed=false;autoCapture=false;openNativeCamera(context)}) {Text("打开原生相机")}
+        }
+        HorizontalDivider(Modifier.padding(vertical=12.dp),color=CameraDesign.Border)
+        Text("关于",style=MaterialTheme.typography.labelLarge,color=TextSecondary)
+        Text("映刻 ${com.aipose.camera.BuildConfig.VERSION_NAME}",Modifier.padding(vertical=12.dp),style=MaterialTheme.typography.bodySmall,color=TextSecondary)
+        TextButton(onClick={scope.launch {Diagnostics.export(context)}}) {Text("导出诊断日志")}
+        if(savedResolution.isNotBlank()) Text("最近成片：$savedResolution",style=MaterialTheme.typography.bodySmall,color=TextSecondary)
+        if(settings.currentConfig().apiKey.isNotBlank()) {
+            TextButton(enabled=!aiLoading,onClick={requestAiReview()}) {Text(if(aiLoading) "正在获取建议…" else "获取摄影建议")}
+            if(aiReview.isNotBlank()) Text(aiReview)
         }
     }
 }

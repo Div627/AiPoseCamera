@@ -1,5 +1,6 @@
 package com.aipose.camera.update
 
+import com.aipose.camera.ui.theme.PrimaryButton as Button
 import androidx.activity.compose.BackHandler
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.LifecycleEventObserver
