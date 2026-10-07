@@ -17,7 +17,11 @@ import com.aipose.camera.camera.RecentPhotoState
 import androidx.compose.ui.platform.LocalContext
 import com.aipose.camera.ui.theme.AiPoseTheme
 import com.aipose.camera.update.ScannerScreen
+import com.aipose.camera.assistant.*
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.media3.common.util.UnstableApi
 
+@UnstableApi
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,17 +34,38 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@UnstableApi
 @Composable
 private fun AppNav() {
     val nav = rememberNavController()
     var cameraMode by remember {mutableStateOf(CameraMode.LANDSCAPE)}
     val context = LocalContext.current
     val photos = remember { RecentPhotoState(context.applicationContext) }
+    val assistant: AssistantViewModel = viewModel()
+    var activePlan by remember { mutableStateOf<ShootingPlan?>(null) }
+    var activeProject by remember { mutableStateOf<String?>(null) }
+    var recordingProject by remember { mutableStateOf<String?>(null) }
+    var recordingShot by remember { mutableStateOf<Shot?>(null) }
+    var playingFile by remember { mutableStateOf<String?>(null) }
 
     NavHost(navController = nav, startDestination = "camera") {
         composable("camera") {
-            CameraScreen(cameraMode, photos, onModeChanged={cameraMode=it},onOpenScanner = { nav.navigate("scanner") })
+            CameraScreen(cameraMode, photos, onModeChanged={cameraMode=it;activePlan=null},onOpenScanner = { nav.navigate("scanner") },
+                onOpenAssistant={nav.navigate("assistant") {launchSingleTop=true}},plan=activePlan,
+                onPhotoSaved={uri -> activeProject?.let {assistant.photoSaved(it,uri)}},onClearPlan={activePlan=null})
         }
+        composable("assistant") {
+            AssistantScreen(assistant,onBack={nav.popBackStack()},onPhoto={plan ->
+                activePlan=plan;activeProject=assistant.state.value.project.id;cameraMode=plan.mode;nav.popBackStack()
+            },onRecord={shot ->recordingProject=assistant.state.value.project.id;recordingShot=shot;nav.navigate("record")},onPlay={file ->playingFile=file;nav.navigate("video")})
+        }
+        composable("record") {
+            recordingShot?.let {shot -> VideoCaptureScreen(recordingProject ?: assistant.state.value.project.id,shot,onBack={nav.popBackStack()},onSaved={file ->
+                assistant.recorded(recordingProject ?: assistant.state.value.project.id,shot.id,file)
+                if(nav.currentDestination?.route=="record") nav.popBackStack()
+            })}
+        }
+        composable("video") {playingFile?.let {VideoPlayerScreen(it){nav.popBackStack()}}}
         composable("scanner") {
             ScannerScreen(onBack = { nav.popBackStack() })
         }

@@ -18,14 +18,14 @@ fun betaKey(name: String): String {
 }
 android {
     namespace = "com.aipose.camera"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.aipose.camera"
         minSdk = 26
         targetSdk = 34
-        versionCode = 22
-        versionName = "0.1.0-beta.9"
+        versionCode = 23
+        versionName = "0.1.0-beta.10"
         ndk { abiFilters += listOf("arm64-v8a") }
 
         buildConfigField("String", "DEEPSEEK_KEY", betaKey("DEEPSEEK_API_KEY"))
@@ -84,6 +84,14 @@ dependencies {
     implementation("androidx.camera:camera-camera2:$camerax")
     implementation("androidx.camera:camera-lifecycle:$camerax")
     implementation("androidx.camera:camera-view:$camerax")
+    implementation("androidx.camera:camera-video:$camerax")
+
+    implementation("androidx.media3:media3-transformer:1.5.1")
+    implementation("androidx.media3:media3-effect:1.5.1")
+    implementation("androidx.media3:media3-exoplayer:1.5.1")
+    implementation("androidx.media3:media3-ui:1.5.1")
+    implementation("org.commonmark:commonmark:0.24.0")
+    implementation("org.commonmark:commonmark-ext-gfm-tables:0.24.0")
 
     // MediaPipe Pose Landmarker（端上姿态检测）
     implementation("com.google.mediapipe:tasks-vision:0.10.32") {

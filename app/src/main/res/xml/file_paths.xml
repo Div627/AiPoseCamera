@@ -3,4 +3,5 @@
     <!-- 应用内更新下载的 APK 存放位置 -->
     <cache-path name="apks" path="apks/" />
     <cache-path name="diagnostics" path="diagnostics/" />
+    <files-path name="projects" path="projects/" />
 </paths>

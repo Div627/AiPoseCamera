@@ -163,7 +163,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () -> Unit, onMode: (CameraMode) -> Unit) {
+fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () -> Unit, onMode: (CameraMode) -> Unit, onOpenAssistant: () -> Unit = {}, plan: com.aipose.camera.assistant.ShootingPlan? = null, onPhotoSaved: (String) -> Unit = {}, onClearPlan: () -> Unit = {}) {
     val context = LocalContext.current
     var selectedPhoto by remember { mutableStateOf<RecentPhoto?>(null) }
     var reviewingSelection by remember { mutableStateOf(false) }
@@ -312,6 +312,13 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
     var style by remember { mutableStateOf(PhotoStyle.ORIGINAL) }
     var autoStyle by remember { mutableStateOf(true) }
     var exposureEv by remember { mutableFloatStateOf(0f) }
+    var appliedPlan by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(plan?.id) {
+        plan?.takeIf { it.id != appliedPlan }?.let {
+            autoStyle=false; style=it.style; grade=ColorGrade(strength=.6f); autoExposure=true
+            appliedPlan=it.id
+        }
+    }
     var lastMeterAt by remember { mutableLongStateOf(0L) }
     var lastFocusAt by remember { mutableLongStateOf(0L) }
     var lastExposureAt by remember { mutableLongStateOf(0L) }
@@ -340,6 +347,7 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
                 val ticket = photos.reserve() ?: return@start
                 PhotoCapture.take(context,imageCapture,style,grade,onOriginalSaved={ uri ->
                     photos.original(ticket, uri)
+                    onPhotoSaved(uri.toString())
                     photoSaved=true;savedAt=SystemClock.elapsedRealtime()
                 }) { result ->
                     photos.finish(ticket, result)
@@ -627,6 +635,7 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
             Column(Modifier.padding(CameraDesign.Page),horizontalAlignment=Alignment.CenterHorizontally) {
                 Text("允许使用相机",style=MaterialTheme.typography.headlineSmall)
                 Text("开启相机权限后即可取景拍摄。",style=MaterialTheme.typography.bodyMedium,color=TextSecondary)
+                TextButton(onClick=onOpenAssistant) {Text("先规划拍摄") }
                 TextButton(onClick={permissionLauncher.launch(requiredPermissions)}) {Text("开启权限")}
                 TextButton(onClick={context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                     android.net.Uri.parse("package:${context.packageName}")))}) {Text("打开系统设置")}
@@ -640,7 +649,7 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
             IconButton(enabled=!capturing && camera?.cameraInfo?.hasFlashUnit()==true,onClick={flashMode=when(flashMode){ImageCapture.FLASH_MODE_OFF->ImageCapture.FLASH_MODE_AUTO;ImageCapture.FLASH_MODE_AUTO->ImageCapture.FLASH_MODE_ON;else->ImageCapture.FLASH_MODE_OFF}}) {
                 Icon(when(flashMode){ImageCapture.FLASH_MODE_ON->Icons.Filled.FlashOn;ImageCapture.FLASH_MODE_AUTO->Icons.Filled.FlashAuto;else->Icons.Filled.FlashOff},"闪光灯：${when(flashMode){ImageCapture.FLASH_MODE_ON->"开";ImageCapture.FLASH_MODE_AUTO->"自动";else->"关"}}",tint=Color.White)
             }
-            Text("映刻",color=TextPrimary,style=MaterialTheme.typography.titleMedium)
+            TextButton(enabled=!capturing,onClick={timer.cancel();onOpenAssistant()}) {Text("拍摄助手",color=TextPrimary,style=MaterialTheme.typography.titleMedium)}
             IconButton(enabled=!capturing,onClick={timer.cancel();panel=CameraPanel.TOOLS}) {Icon(Icons.Outlined.MoreHoriz,"更多拍摄设置",tint=TextPrimary)}
         }
       Box(Modifier.fillMaxWidth().weight(1f).onSizeChanged { previewSize = it.width to it.height }) {
@@ -921,6 +930,10 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
                 }
             }
         }
+      }
+      if(appliedPlan!=null && plan!=null) Row(Modifier.fillMaxWidth().padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically) {
+          Text("${if(autoStyle) "自动" else style.label} · ${plan.title}",Modifier.weight(1f),style=MaterialTheme.typography.labelSmall,color=TextSecondary,maxLines=1)
+          TextButton(onClick={autoStyle=true;appliedPlan=null;grade=ColorGrade(strength=.6f);onClearPlan()}) {Text("恢复自动")}
       }
       CameraModes(mode,!capturing){timer.cancel();onMode(it)}
       Row(Modifier.fillMaxWidth().padding(horizontal=28.dp,vertical=8.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
