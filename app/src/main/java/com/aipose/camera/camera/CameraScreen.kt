@@ -53,11 +53,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.CheckCircle
 import com.aipose.camera.ui.theme.BgDark
 import com.aipose.camera.ui.theme.TextPrimary
 import com.aipose.camera.ui.theme.SurfaceElevated
+import com.aipose.camera.ui.theme.SurfaceDark
+import androidx.compose.foundation.layout.fillMaxHeight
 import android.view.MotionEvent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -191,8 +194,8 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
     val settings = remember { SettingsRepository(context) }
     val timer=rememberCaptureTimer()
     var timerSeconds by remember {mutableIntStateOf(0)}
-    var gridEnabled by remember {mutableStateOf(false)}
-    var levelEnabled by remember {mutableStateOf(true)}
+    var gridEnabled by remember {mutableStateOf(settings.gridEnabled)}
+    var levelEnabled by remember {mutableStateOf(settings.levelEnabled)}
     var guidanceEnabled by remember {mutableStateOf(true)}
     var referenceEnabled by remember {mutableStateOf(true)}
     var moreMenuOpen by remember {mutableStateOf(false)}
@@ -649,10 +652,10 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
             IconButton(enabled=!capturing && camera?.cameraInfo?.hasFlashUnit()==true,onClick={flashMode=when(flashMode){ImageCapture.FLASH_MODE_OFF->ImageCapture.FLASH_MODE_AUTO;ImageCapture.FLASH_MODE_AUTO->ImageCapture.FLASH_MODE_ON;else->ImageCapture.FLASH_MODE_OFF}}) {
                 Icon(when(flashMode){ImageCapture.FLASH_MODE_ON->Icons.Filled.FlashOn;ImageCapture.FLASH_MODE_AUTO->Icons.Filled.FlashAuto;else->Icons.Filled.FlashOff},"闪光灯：${when(flashMode){ImageCapture.FLASH_MODE_ON->"开";ImageCapture.FLASH_MODE_AUTO->"自动";else->"关"}}",tint=Color.White)
             }
-            TextButton(enabled=!capturing,onClick={timer.cancel();onOpenAssistant()}) {Text("拍摄助手",color=TextPrimary,style=MaterialTheme.typography.titleMedium)}
+            IconButton(enabled=!capturing,onClick={timer.cancel();onOpenAssistant()}) {Icon(androidx.compose.material.icons.Icons.Outlined.ChatBubbleOutline,"打开拍摄助手",tint=TextPrimary)}
             Box {
                 IconButton(enabled=!capturing,onClick={moreMenuOpen=true}) {Icon(Icons.Outlined.MoreHoriz,"更多",tint=TextPrimary)}
-                androidx.compose.material3.DropdownMenu(expanded=moreMenuOpen,onDismissRequest={moreMenuOpen=false}) {
+                androidx.compose.material3.DropdownMenu(expanded=moreMenuOpen,onDismissRequest={moreMenuOpen=false},modifier=Modifier.width(176.dp),offset=androidx.compose.ui.unit.DpOffset((-8).dp,6.dp),shape=RoundedCornerShape(18.dp),containerColor=SurfaceDark,tonalElevation=0.dp,shadowElevation=6.dp) {
                     androidx.compose.material3.DropdownMenuItem(text={Text("扫一扫")},leadingIcon={ScanIcon()},onClick={moreMenuOpen=false;timer.cancel();onOpenScanner()})
                     androidx.compose.material3.DropdownMenuItem(text={Text("设置")},leadingIcon={Icon(Icons.Default.Tune,null)},onClick={moreMenuOpen=false;timer.cancel();panel=CameraPanel.TOOLS})
                 }
@@ -863,7 +866,7 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
         if(mode==CameraMode.PORTRAIT && portraitHint.kind==PortraitGuidance.Kind.FULL && peopleCount in 1..4 && selectedPose!=null && showGuide) {
             HumanPoseGuide(selectedPose,Modifier.fillMaxSize(),matched=peopleCount==1 && score>=78 && detected!=null && template.points.keys.all{detected?.containsKey(it)==true})
         }
-        FramingGuides(gridEnabled || (mode==CameraMode.LANDSCAPE && (compositionActive || guidanceEnabled && landscapeTip!=null)),level,Modifier.fillMaxSize())
+        FramingGuides(gridEnabled || (mode==CameraMode.LANDSCAPE && (compositionActive || guidanceEnabled && landscapeTip!=null)),level,Modifier.fillMaxSize(),feedbackEnabled=panel==CameraPanel.NONE && !capturing && !timer.active)
         if(compositionActive && panel==CameraPanel.NONE && !selectingSubject && (compositionAnalyzing || subjectBox!=null)) CompositionOverlay(compositionAnalyzing,subjectBox,compositionTarget,Modifier.fillMaxSize())
         if(mode==CameraMode.PORTRAIT && panel==CameraPanel.NONE && !capturing) {
             if(referenceEnabled && selectedPose!=null && portraitHint.kind==PortraitGuidance.Kind.FULL) {
@@ -872,6 +875,8 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
                 Text("姿势灵感",color=TextPrimary)
             }
         }
+        if(panel==CameraPanel.NONE && !capturing && !timer.active && !selectingSubject)
+            AssistantEdgeGesture(Modifier.align(Alignment.CenterStart).width(20.dp).fillMaxHeight()) {timer.cancel();onOpenAssistant()}
         if(subjectEdges.isNotEmpty()) Canvas(Modifier.fillMaxSize()) {
             subjectEdges.forEach {edge->drawLine(CameraAccent.copy(alpha=.85f),Offset(edge.from.x*size.width,edge.from.y*size.height),Offset(edge.to.x*size.width,edge.to.y*size.height),1.3.dp.toPx())}
         }
@@ -992,40 +997,40 @@ fun AiCameraScreen(mode:CameraMode,photos: RecentPhotoState,onOpenScanner: () ->
         }
     }
     if(optionsOpen) CameraSettingsPage(onBack={panel=CameraPanel.NONE}) {
-        CameraToggle("拍摄指引",guidanceEnabled){guidanceEnabled=it}
-        CameraToggle("稳定后自动拍摄",autoCapture){autoCapture=it;settings.autoCapture=it;groupZoomSession.reset();framing.reset(rearm=true);faceGate.reset();sceneGate.reset();armed=true}
-        if(mode==CameraMode.PORTRAIT) CameraToggle("姿势参考图",referenceEnabled){referenceEnabled=it}
-        Text("延时拍摄",Modifier.padding(top=12.dp,bottom=8.dp),style=MaterialTheme.typography.titleSmall)
-        TimerChoices(timerSeconds){timerSeconds=it}
-        CameraToggle("九宫格",gridEnabled){gridEnabled=it}
-        if(level.available) CameraToggle("水平辅助",levelEnabled){levelEnabled=it}
-        if(modelFailed) TextButton(onClick={poseModelFailed=false;faceModelFailed=false;modelAttempt++}) {Text("重试人物识别")}
-        TextButton(onClick={advancedCapture=!advancedCapture}) {Text(if(advancedCapture) "收起精细拍摄选项" else "精细拍摄选项")}
-        if(advancedCapture) {
-            Text("场景提示",style=MaterialTheme.typography.titleSmall)
-            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-                mode.intents.forEach {value->FilterChip(selected=intent==value,onClick={
-                    intent=value;clearComposition();subjectAutoArmed=false;framing.reset();sceneGate.reset();faceGate.reset();progress=0f
-                    if(value==TravelIntent.AURORA){autoCapture=false;autoStyle=false;style=PhotoStyle.ORIGINAL;grade=ColorGrade();flashMode=ImageCapture.FLASH_MODE_OFF;setZoom(1f)}
-                },label={Text(value.label)})}
-            }
-            Text(intent.advice.substringAfter("："),style=MaterialTheme.typography.bodySmall,color=TextSecondary)
-            if(mode==CameraMode.PORTRAIT) {
-                CameraToggle("叠加姿势轮廓",showGuide){showGuide=it}
-                Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(4.dp)) {ReferenceStyle.entries.forEach {r->FilterChip(selected=referenceStyle==r,onClick={referenceStyle=r;templateIndex=0;groupZoomSession.reset();framing.reset();sceneGate.reset();progress=0f},label={Text(r.label)})}}
-            }
-            ExposureControl(camera,onManual={autoExposure=false;zoomSettledAt=SystemClock.elapsedRealtime()+2000})
-            TextButton(onClick={autoExposure=true;sceneOptimizer.reset()}) {Text(if(autoExposure) "自动曝光已开启" else "恢复自动曝光")}
-            TextButton(onClick={timer.cancel();subjectAutoArmed=false;autoCapture=false;openNativeCamera(context)}) {Text("打开原生相机")}
+        SettingsGroup("拍摄") {
+            CameraToggle("拍摄指引",guidanceEnabled){guidanceEnabled=it}
+            CameraToggle("稳定后自动拍摄",autoCapture){autoCapture=it;settings.autoCapture=it;groupZoomSession.reset();framing.reset(rearm=true);faceGate.reset();sceneGate.reset();armed=true}
+            if(mode==CameraMode.PORTRAIT) CameraToggle("姿势参考图",referenceEnabled){referenceEnabled=it}
+            SettingsTimer(timerSeconds){timerSeconds=it}
         }
-        HorizontalDivider(Modifier.padding(vertical=12.dp),color=CameraDesign.Border)
-        Text("关于",style=MaterialTheme.typography.labelLarge,color=TextSecondary)
-        Text("映刻 ${com.aipose.camera.BuildConfig.VERSION_NAME}",Modifier.padding(vertical=12.dp),style=MaterialTheme.typography.bodySmall,color=TextSecondary)
-        TextButton(onClick={scope.launch {Diagnostics.export(context)}}) {Text("导出诊断日志")}
-        if(savedResolution.isNotBlank()) Text("最近成片：$savedResolution",style=MaterialTheme.typography.bodySmall,color=TextSecondary)
-        if(settings.currentConfig().apiKey.isNotBlank()) {
-            TextButton(enabled=!aiLoading,onClick={requestAiReview()}) {Text(if(aiLoading) "正在获取建议…" else "获取摄影建议")}
-            if(aiReview.isNotBlank()) Text(aiReview)
+        SettingsGroup("取景") {
+            CameraToggle("九宫格",gridEnabled){gridEnabled=it;settings.gridEnabled=it}
+            if(level.available) CameraToggle("水平辅助",levelEnabled){levelEnabled=it;settings.levelEnabled=it}
+        }
+        SettingsGroup("更多") {
+            SettingsAction("精细拍摄",onClick={advancedCapture=!advancedCapture},expanded=advancedCapture)
+            if(advancedCapture) {
+                Text("场景提示",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                    mode.intents.forEach {value->FilterChip(selected=intent==value,onClick={
+                        intent=value;clearComposition();subjectAutoArmed=false;framing.reset();sceneGate.reset();faceGate.reset();progress=0f
+                        if(value==TravelIntent.AURORA){autoCapture=false;autoStyle=false;style=PhotoStyle.ORIGINAL;grade=ColorGrade();flashMode=ImageCapture.FLASH_MODE_OFF;setZoom(1f)}
+                    },label={Text(value.label)})}
+                }
+                if(mode==CameraMode.PORTRAIT) CameraToggle("叠加姿势轮廓",showGuide){showGuide=it}
+                ExposureControl(camera,onManual={autoExposure=false;zoomSettledAt=SystemClock.elapsedRealtime()+2000})
+                TextButton(onClick={autoExposure=true;sceneOptimizer.reset()}) {Text(if(autoExposure) "自动曝光已开启" else "恢复自动曝光")}
+            }
+            if(modelFailed) SettingsAction("重试人物识别",onClick={poseModelFailed=false;faceModelFailed=false;modelAttempt++})
+            SettingsAction("打开原生相机",onClick={timer.cancel();subjectAutoArmed=false;autoCapture=false;openNativeCamera(context)})
+        }
+        SettingsGroup("关于") {
+            Row(Modifier.fillMaxWidth().heightIn(min=54.dp),verticalAlignment=Alignment.CenterVertically) {
+                Text("映刻相机",Modifier.weight(1f),style=MaterialTheme.typography.bodyLarge)
+                Text(com.aipose.camera.BuildConfig.VERSION_NAME,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            SettingsAction("导出诊断日志",onClick={scope.launch {Diagnostics.export(context)}})
+            if(savedResolution.isNotBlank()) Text("最近成片：$savedResolution",Modifier.padding(vertical=8.dp),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

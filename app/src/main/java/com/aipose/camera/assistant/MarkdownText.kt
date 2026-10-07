@@ -44,7 +44,7 @@ fun MarkdownText(text: String) {
         blocks?.forEach {block ->
             val scroll=if(block.code || block.table) Modifier.horizontalScroll(rememberScrollState()) else Modifier
             ClickableText(block.text,Modifier.fillMaxWidth().then(scroll).then(
-                if(block.code) Modifier.background(Color(0xff202126)).padding(12.dp) else Modifier),
+                if(block.code) Modifier.background(MaterialTheme.colorScheme.surfaceVariant).padding(12.dp) else Modifier),
                 style=when {block.heading==1 -> MaterialTheme.typography.titleMedium;block.heading>1 -> MaterialTheme.typography.titleSmall;else -> MaterialTheme.typography.bodyLarge}.copy(
                     color=MaterialTheme.colorScheme.onSurface,fontFamily=if(block.code || block.table) FontFamily.Monospace else FontFamily.Default),
                 onClick={offset -> block.text.getStringAnnotations("url",offset,offset).firstOrNull()?.item?.let {uri ->
@@ -70,7 +70,7 @@ private fun parseMarkdown(text: String): List<MarkdownBlock> {
                 is IndentedCodeBlock -> output.append(node.literal.trimEnd())
                 is StrongEmphasis -> {output.pushStyle(SpanStyle(fontWeight=FontWeight.Bold));children(node,::append);output.pop()}
                 is Emphasis -> {output.pushStyle(SpanStyle(fontStyle=FontStyle.Italic));children(node,::append);output.pop()}
-                is Link -> {output.pushStringAnnotation("url",node.destination);output.pushStyle(SpanStyle(color=Color(0xff87b6ff)));children(node,::append);output.pop();output.pop()}
+                is Link -> {output.pushStringAnnotation("url",node.destination);output.pushStyle(SpanStyle(color=Color(0xff3568a8)));children(node,::append);output.pop();output.pop()}
                 is Image -> {output.append("[图片] ");children(node,::append)}
                 is ListItem -> {output.append("• ");children(node,::append);output.append("\n")}
                 is Paragraph -> children(node,::append)

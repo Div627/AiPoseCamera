@@ -76,17 +76,31 @@ data class LevelReading(val available:Boolean,val roll:Float?)
     }
     return LevelReading(sensor!=null,if(enabled) roll else null)
 }
-@Composable fun FramingGuides(grid:Boolean,level:LevelReading,modifier:Modifier=Modifier) {
+@Composable fun FramingGuides(grid:Boolean,level:LevelReading,modifier:Modifier=Modifier,feedbackEnabled:Boolean=true) {
+    val view=androidx.compose.ui.platform.LocalView.current
+    val owner=LocalLifecycleOwner.current
+    val currentRoll by rememberUpdatedState(level.roll)
+    LaunchedEffect(feedbackEnabled,owner) {
+        val gate=LevelFeedbackGate()
+        if(feedbackEnabled) while(isActive) {
+            if(owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && gate.update(currentRoll,SystemClock.elapsedRealtime()))
+                view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+            delay(80)
+        }
+    }
     Canvas(modifier) {
         if(grid) for(i in 1..2) {
-            drawLine(Color.White.copy(alpha=.22f),Offset(size.width*i/3,0f),Offset(size.width*i/3,size.height),1f)
-            drawLine(Color.White.copy(alpha=.22f),Offset(0f,size.height*i/3),Offset(size.width,size.height*i/3),1f)
+            drawLine(Color.White.copy(alpha=.32f),Offset(size.width*i/3,0f),Offset(size.width*i/3,size.height),.6.dp.toPx())
+            drawLine(Color.White.copy(alpha=.32f),Offset(0f,size.height*i/3),Offset(size.width,size.height*i/3),.6.dp.toPx())
         }
         level.roll?.let {roll->
             val center=Offset(size.width/2,size.height*.48f);val half=48.dp.toPx();val angle=(-roll).coerceIn(-45f,45f)*Math.PI/180
             val delta=Offset((half*kotlin.math.cos(angle)).toFloat(),(half*kotlin.math.sin(angle)).toFloat())
             drawLine(Color.White.copy(alpha=.5f),center-Offset(half,0f),center+Offset(half,0f),2.dp.toPx())
-            drawLine(if(kotlin.math.abs(roll)<2f) CameraAccent else Color.White,center-delta,center+delta,3.dp.toPx())
+            val aligned=kotlin.math.abs(roll)<=2f
+            drawLine(Color.Black.copy(alpha=.45f),center-delta,center+delta,6.dp.toPx(),cap=androidx.compose.ui.graphics.StrokeCap.Round)
+            drawLine(if(aligned) com.aipose.camera.ui.theme.Success else Color.White,center-delta,center+delta,3.dp.toPx(),cap=androidx.compose.ui.graphics.StrokeCap.Round)
+            if(aligned) drawCircle(com.aipose.camera.ui.theme.Success,4.dp.toPx(),center)
         }
     }
 }

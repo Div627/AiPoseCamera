@@ -2,6 +2,10 @@ package com.aipose.camera.assistant
 
 import com.aipose.camera.ui.theme.PrimaryButton as Button
 import android.content.Intent
+import android.speech.RecognizerIntent
+import android.app.Activity
+import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.ChevronRight
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
@@ -47,18 +51,42 @@ fun AssistantScreen(model: AssistantViewModel,onBack:()->Unit,onPhoto:(ShootingP
     var importing by remember {mutableStateOf<String?>(null)}
     var visible by remember(project.id) {mutableIntStateOf(40)}
     val clipboard=LocalClipboardManager.current
+    var voiceNotice by remember {mutableStateOf<String?>(null)}
+    val voiceProject=remember {mutableStateOf<String?>(null)}
+    val speech=rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {result ->
+        if(result.resultCode==Activity.RESULT_OK && voiceProject.value==model.state.value.project.id) {
+            val recognized=result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.take(2000)
+            if(!recognized.isNullOrBlank()) input=if(input.isBlank()) recognized else "$input $recognized"
+        }
+        voiceProject.value=null
+    }
+    fun startVoice() {
+        voiceProject.value=project.id
+        val intent=Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE,java.util.Locale.getDefault().toLanguageTag())
+            .putExtra(RecognizerIntent.EXTRA_PROMPT,"说说想拍什么，识别后可修改")
+        try {speech.launch(intent);voiceNotice=null}
+        catch(_:Exception) {voiceProject.value=null;voiceNotice="系统暂不支持语音识别，可使用键盘的语音输入。"}
+    }
     val importer=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri ->
         val shot=importing;importing=null
         if(uri!=null && shot!=null) model.importClip(shot,uri)
     }
-    Scaffold(topBar={TopAppBar(title={Column {Text("拍摄助手",style=MaterialTheme.typography.titleMedium);Text(if(model.onlineAvailable) "AI 规划" else "本地规划",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}},
-        navigationIcon={IconButton(onClick=onBack){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"返回相机")}},
-        actions={IconButton(enabled=!state.busy,onClick={projectsOpen=true}){Icon(Icons.Outlined.Folder,"本地项目")};IconButton(enabled=!state.busy,onClick={model.newProject()}){Icon(Icons.Outlined.Add,"新对话")}})},
+    Scaffold(containerColor=MaterialTheme.colorScheme.background,topBar={
+        Row(Modifier.fillMaxWidth().statusBarsPadding().height(48.dp).padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically) {
+            IconButton(onClick=onBack){Icon(Icons.Outlined.CameraAlt,"返回相机")}
+            Spacer(Modifier.weight(1f))
+            IconButton(enabled=!state.busy,onClick={projectsOpen=true}){Icon(Icons.Outlined.Folder,"本地项目")}
+            IconButton(enabled=!state.busy,onClick={model.newProject();input="";voiceNotice=null}){Icon(Icons.Outlined.Add,"新对话")}
+        }
+    },
         bottomBar={Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal=16.dp,vertical=8.dp)) {
             if(state.exporting) Row(verticalAlignment=Alignment.CenterVertically) {Text("正在本机合成，原素材保留",Modifier.weight(1f));TextButton(onClick=model::cancelExport){Text("取消")}}
             else if(state.busy) Text(if(state.replying) "正在回复…" else "正在处理…",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(bottom=8.dp))
+            voiceNotice?.let {Text(it,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(bottom=8.dp))}
             AssistantComposer(input,{input=it},input.isNotBlank() && !state.busy && state.ready,state.replying,
-                onSend={model.send(input);input=""},onStop=model::stopReply)
+                onSend={model.send(input);input=""},onStop=model::stopReply,onVoice=::startVoice,voiceEnabled=!state.busy && state.ready)
 
         }}) {padding ->
         val listState=androidx.compose.foundation.lazy.rememberLazyListState()
@@ -81,7 +109,10 @@ fun AssistantScreen(model: AssistantViewModel,onBack:()->Unit,onPhoto:(ShootingP
                     Text("想拍点什么？",style=MaterialTheme.typography.headlineSmall)
                     Text("说说地点和想法，我来安排拍摄。",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
                     listOf("我到冰岛了，想拍自然的风景照","拍一段从孤独到有生命力的个人 Vlog","想拍自然、有环境感的人像").forEach {example ->
-                        TextButton(enabled=!state.busy,onClick={model.send(example)},contentPadding=PaddingValues(horizontal=0.dp,vertical=8.dp)){Text(example,style=MaterialTheme.typography.bodyMedium)}
+                        OutlinedButton(enabled=!state.busy,onClick={model.send(example)},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp),border=androidx.compose.foundation.BorderStroke(1.dp,MaterialTheme.colorScheme.outlineVariant),contentPadding=PaddingValues(14.dp)) {
+                            Text(example,Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium)
+                            Icon(Icons.Outlined.ChevronRight,null,Modifier.size(18.dp))
+                        }
                     }
                     Text(if(model.onlineAvailable) "项目保存在本机" else "本地规划，尚未连接云端 AI",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -113,7 +144,7 @@ fun AssistantScreen(model: AssistantViewModel,onBack:()->Unit,onPhoto:(ShootingP
                             }
                             Button(enabled=!state.busy,onClick={onPhoto(plan)},modifier=Modifier.fillMaxWidth()){Text("开始拍摄")}
                         }
-                        TextButton(onClick={placesOpen=true},enabled=!state.busy){Text("去哪里拍")}
+                        OutlinedButton(onClick={placesOpen=true},enabled=!state.busy,modifier=Modifier.fillMaxWidth()){Text("去哪里拍")}
                     }
                 }
                 if(plan.kind=="video") {

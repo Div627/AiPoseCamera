@@ -16,6 +16,9 @@ import com.aipose.camera.camera.CameraMode
 import com.aipose.camera.camera.RecentPhotoState
 import androidx.compose.ui.platform.LocalContext
 import com.aipose.camera.ui.theme.AiPoseTheme
+import com.aipose.camera.ui.theme.LightUiTheme
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import com.aipose.camera.update.ScannerScreen
 import com.aipose.camera.assistant.*
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -54,10 +57,15 @@ private fun AppNav() {
                 onOpenAssistant={nav.navigate("assistant") {launchSingleTop=true}},plan=activePlan,
                 onPhotoSaved={uri -> activeProject?.let {assistant.photoSaved(it,uri)}},onClearPlan={activePlan=null})
         }
-        composable("assistant") {
+        composable("assistant",
+            enterTransition={slideInHorizontally(tween(240),initialOffsetX={-it})+fadeIn(tween(160))},
+            exitTransition={fadeOut(tween(160))},
+            popExitTransition={slideOutHorizontally(tween(240),targetOffsetX={-it})+fadeOut(tween(160))}) {
+            LightUiTheme {
             AssistantScreen(assistant,onBack={nav.popBackStack()},onPhoto={plan ->
                 activePlan=plan;activeProject=assistant.state.value.project.id;cameraMode=plan.mode;nav.popBackStack()
             },onRecord={shot ->recordingProject=assistant.state.value.project.id;recordingShot=shot;nav.navigate("record")},onPlay={file ->playingFile=file;nav.navigate("video")})
+            }
         }
         composable("record") {
             recordingShot?.let {shot -> VideoCaptureScreen(recordingProject ?: assistant.state.value.project.id,shot,onBack={nav.popBackStack()},onSaved={file ->

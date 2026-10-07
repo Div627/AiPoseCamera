@@ -31,6 +31,14 @@ class SettingsRepository(context: Context) {
         get() = sp.getBoolean(KEY_AUTO_CAPTURE, true)
         set(value) = sp.edit().putBoolean(KEY_AUTO_CAPTURE, value).apply()
 
+    var gridEnabled: Boolean
+        get() = sp.getBoolean("grid_enabled", true)
+        set(value) = sp.edit().putBoolean("grid_enabled", value).apply()
+
+    var levelEnabled: Boolean
+        get() = sp.getBoolean("level_enabled", true)
+        set(value) = sp.edit().putBoolean("level_enabled", value).apply()
+
     var aiReviewEnabled: Boolean
         get() = sp.getBoolean(KEY_AI_REVIEW, true)
         set(value) = sp.edit().putBoolean(KEY_AI_REVIEW, value).apply()
