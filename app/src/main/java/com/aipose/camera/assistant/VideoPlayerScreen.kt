@@ -20,9 +20,13 @@ import java.io.File
 
 @UnstableApi
 @Composable
-fun VideoPlayerScreen(path:String,onBack:()->Unit) {
+fun VideoPlayerScreen(path:String,startMs:Long=0,durationMs:Long?=null,onBack:()->Unit) {
     val context=LocalContext.current
-    val player=remember(path) {ExoPlayer.Builder(context).build().apply {setMediaItem(MediaItem.fromUri(Uri.fromFile(File(path))));prepare();playWhenReady=true}}
+    val player=remember(path,startMs,durationMs) {ExoPlayer.Builder(context).build().apply {
+        val item=MediaItem.Builder().setUri(Uri.fromFile(File(path)))
+        durationMs?.let {item.setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(startMs).setEndPositionMs(startMs+it).build())}
+        setMediaItem(item.build());prepare();playWhenReady=true
+    }}
     val lifecycle=LocalLifecycleOwner.current
     DisposableEffect(player,lifecycle) {
         val observer=LifecycleEventObserver {_,event -> if(event==Lifecycle.Event.ON_PAUSE) player.pause()}

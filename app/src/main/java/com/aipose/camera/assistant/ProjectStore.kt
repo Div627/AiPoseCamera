@@ -36,12 +36,12 @@ object ProjectCodec {
         put("id",p.id); put("title",p.title); put("updated",p.updated)
         put("messages",JSONArray().apply { p.messages.forEach { put(JSONObject().put("id",it.id).put("role",it.role).put("text",it.text)) } })
         p.plan?.let { put("plan",planJson(it)) }
-        put("clips",JSONArray().apply { p.clips.forEach { put(JSONObject().put("shot",it.shotId).put("file",it.file).put("duration",it.durationMs)) } })
+        put("clips",JSONArray().apply { p.clips.forEach { put(JSONObject().put("shot",it.shotId).put("file",it.file).put("duration",it.durationMs).put("start",it.startMs)) } })
         put("exports",JSONArray(p.exports)); put("photos",JSONArray(p.photos))
     }.toString()
     fun planJson(p: ShootingPlan): JSONObject = JSONObject().apply {
         put("id",p.id); put("kind",p.kind); put("title",p.title); put("description",p.description)
-        put("style",p.style.name); put("mode",p.mode.name)
+        put("style",p.style.name); put("mode",p.mode.name); put("videoFormat",p.videoFormat.name)
         put("shots",JSONArray().apply { p.shots.forEach { put(JSONObject().put("id",it.id).put("title",it.title).put("direction",it.direction)) } })
     }
     fun plan(o: JSONObject): ShootingPlan {
@@ -54,7 +54,8 @@ object ProjectCodec {
         require(list.map { it.id }.distinct().size==list.size)
         require(kind!="video" || list.size in 2..8)
         return ShootingPlan(id=o.optString("id").ifBlank {newId()},kind=kind,title=o.getString("title").take(80),
-            description=o.getString("description").take(800),style=style,mode=mode,shots=list)
+            description=o.getString("description").take(800),style=style,mode=mode,shots=list,
+            videoFormat=VideoFormat.entries.firstOrNull {it.name==o.optString("videoFormat")} ?: VideoFormat.PORTRAIT)
     }
     fun decode(text: String): ShootingProject {
         val o=JSONObject(text)
@@ -63,7 +64,7 @@ object ProjectCodec {
         return ShootingProject(o.getString("id"),o.getString("title"),o.getLong("updated"),
             (0 until messages.length()).map { messages.getJSONObject(it).let { m -> ChatMessage(m.getString("id"),m.getString("role"),m.getString("text")) } },
             o.optJSONObject("plan")?.let(::plan),
-            (0 until clips.length()).map { clips.getJSONObject(it).let { c -> LocalClip(c.getString("shot"),c.getString("file"),c.getLong("duration")) } },
+            (0 until clips.length()).map { clips.getJSONObject(it).let { c -> LocalClip(c.getString("shot"),c.getString("file"),c.getLong("duration"),c.optLong("start",0).also {require(it>=0)}) } },
             strings("exports"),strings("photos"))
     }
 }

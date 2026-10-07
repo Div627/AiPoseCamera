@@ -49,6 +49,8 @@ private fun AppNav() {
     var activeProject by remember { mutableStateOf<String?>(null) }
     var recordingProject by remember { mutableStateOf<String?>(null) }
     var recordingShot by remember { mutableStateOf<Shot?>(null) }
+    var studyingProject by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf<String?>(null)}
+    var playingClip by remember {mutableStateOf<LocalClip?>(null)}
     var playingFile by remember { mutableStateOf<String?>(null) }
 
     NavHost(navController = nav, startDestination = "camera") {
@@ -64,7 +66,20 @@ private fun AppNav() {
             LightUiTheme {
             AssistantScreen(assistant,onBack={nav.popBackStack()},onPhoto={plan ->
                 activePlan=plan;activeProject=assistant.state.value.project.id;cameraMode=plan.mode;nav.popBackStack()
-            },onRecord={shot ->recordingProject=assistant.state.value.project.id;recordingShot=shot;nav.navigate("record")},onPlay={file ->playingFile=file;nav.navigate("video")})
+            },onRecord={shot ->recordingProject=assistant.state.value.project.id;recordingShot=shot;nav.navigate("record")},onPlay={file ->playingFile=file;playingClip=null;nav.navigate("video")},onVideoStudy={studyingProject=assistant.state.value.project.id;nav.navigate("study")},
+                onPlayClip={clip ->playingClip=clip;playingFile=clip.file;nav.navigate("video")})
+            }
+        }
+        composable("study") {
+            studyingProject?.let {id ->
+                val factory=remember(id) {object: androidx.lifecycle.ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T: androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
+                        VideoStudyViewModel(context.applicationContext as android.app.Application,id) as T
+                }}
+                val model: VideoStudyViewModel = viewModel(factory=factory)
+                LightUiTheme {VideoStudyScreen(model,onBack={nav.popBackStack()},onPhotoSaved={assistant.photoSaved(id,it)},
+                    onVlog={study,chronological ->assistant.useVideoStudy(id,study,chronological);nav.popBackStack()})}
             }
         }
         composable("record") {
@@ -73,7 +88,7 @@ private fun AppNav() {
                 if(nav.currentDestination?.route=="record") nav.popBackStack()
             })}
         }
-        composable("video") {playingFile?.let {VideoPlayerScreen(it){nav.popBackStack()}}}
+        composable("video") {playingFile?.let {VideoPlayerScreen(it,playingClip?.startMs ?: 0,playingClip?.durationMs){nav.popBackStack()}}}
         composable("scanner") {
             ScannerScreen(onBack = { nav.popBackStack() })
         }

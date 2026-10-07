@@ -43,16 +43,16 @@ class AssistantViewModel(app: Application): AndroidViewModel(app) {
     private suspend fun change(transform: (ShootingProject)->ShootingProject) = lock.withLock {
         val project=transform(mutable.value.project).copy(updated=System.currentTimeMillis())
         withContext(Dispatchers.IO) {store.save(project)}
-        mutable.value=mutable.value.copy(project=project,projects=withContext(Dispatchers.IO) {store.list()})
+        mutable.value=mutable.value.copy(project=project,notice=null,exportCompleted=false,exportFailed=false,projects=withContext(Dispatchers.IO) {store.list()})
     }
     fun newProject() {
         if(state.value.busy) return
-        viewModelScope.launch {change {ShootingProject()}}
+        viewModelScope.launch {change {ShootingProject()}; mutable.value=state.value.copy(exportCompleted=false,exportFailed=false,savedVideo=null,saveFailedVideo=null)}
     }
     fun openProject(id: String) {
         if(state.value.busy) return
         viewModelScope.launch {lock.withLock {
-            withContext(Dispatchers.IO) {store.load(id)}?.let {mutable.value=mutable.value.copy(project=it,error=null)}
+            withContext(Dispatchers.IO) {store.load(id)}?.let {mutable.value=mutable.value.copy(project=it,error=null,notice=null,exportCompleted=false,exportFailed=false,savedVideo=null,saveFailedVideo=null)}
         }}
     }
     fun deleteProject(id: String) {
@@ -64,7 +64,7 @@ class AssistantViewModel(app: Application): AndroidViewModel(app) {
             }
             val list=withContext(Dispatchers.IO) {store.list()}
             val next=if(state.value.project.id==id) withContext(Dispatchers.IO) {list.firstOrNull()?.let {store.load(it.id)} ?: ShootingProject().also(store::save)} else state.value.project
-            mutable.value=mutable.value.copy(project=next,projects=withContext(Dispatchers.IO){store.list()},error=null)
+            mutable.value=mutable.value.copy(project=next,notice=null,savedVideo=null,saveFailedVideo=null,exportCompleted=false,exportFailed=false,projects=withContext(Dispatchers.IO){store.list()},error=null)
         }}
     }
     fun send(text: String, retry: Boolean=false) {
@@ -138,31 +138,57 @@ class AssistantViewModel(app: Application): AndroidViewModel(app) {
     }
     fun generateVideo() {
         if(state.value.busy) return
-        mutable.value=state.value.copy(busy=true,exporting=true,error=null)
+        mutable.value=state.value.copy(busy=true,exporting=true,error=null,exportCompleted=false,exportFailed=false)
         editor.export(state.value.project) {result -> viewModelScope.launch {
             try {
-                if(result==null) mutable.value=state.value.copy(error="合成未完成，请检查至少两段可用视频和剩余空间后重试。")
+                if(result==null) mutable.value=state.value.copy(exportFailed=true,error="合成未完成，请检查至少两段可用视频和剩余空间后重试。")
                 else {
                     require(withContext(Dispatchers.IO) {ProjectMedia.duration(result)}>=500)
                     change {it.copy(exports=it.exports+result.absolutePath)}
+                    mutable.value=state.value.copy(exportCompleted=true)
                 }
             } catch(_:Exception) {
                 result?.delete()
-                mutable.value=state.value.copy(error="成片未完整保存，请检查手机存储后重试。")
+                mutable.value=state.value.copy(exportFailed=true,error="成片未完整保存，请检查手机存储后重试。")
             } finally {mutable.value=state.value.copy(busy=false,exporting=false)}
         }}
     }
     fun cancelExport() {editor.cancel();mutable.value=state.value.copy(busy=false,exporting=false)}
     fun saveVideo(path: String) {
         if(state.value.busy) return
-        mutable.value=state.value.copy(busy=true,error=null,notice=null)
+        mutable.value=state.value.copy(busy=true,error=null,notice=null,savingVideo=path,savedVideo=null,saveFailedVideo=null)
         viewModelScope.launch {
-            try {ProjectMedia.saveToGallery(getApplication(),path);mutable.value=state.value.copy(notice="已保存到系统相册")}
-            catch(_:Exception) {mutable.value=state.value.copy(error="保存失败，项目中的成片仍保留，可以重试。")}
-            finally {mutable.value=state.value.copy(busy=false)}
+            try {ProjectMedia.saveToGallery(getApplication(),path);mutable.value=state.value.copy(notice="已保存到系统相册",savedVideo=path)}
+            catch(_:Exception) {mutable.value=state.value.copy(error="保存失败，项目中的成片仍保留，可以重试。",saveFailedVideo=path)}
+            finally {mutable.value=state.value.copy(busy=false,savingVideo=null)}
         }
+    }
+    fun useVideoStudy(projectId: String, study: VideoStudy, chronological: Boolean = true) {
+        if(state.value.busy || state.value.project.id != projectId) return
+        val candidates = FrameSelection.segments(study.frames, study.durationMs)
+        if(candidates.size < 2) {mutable.value=state.value.copy(error="这段素材不足以选出两段独立片段，请导入更长的视频。");return}
+        val selected = if(chronological) candidates else candidates.sortedBy {it.faces * .5f + it.brightness}
+        mutable.value=state.value.copy(busy=true,error=null)
+        viewModelScope.launch {try {change {p ->
+            check(p.id==projectId)
+            val shots=selected.mapIndexed {i,f ->
+                val range=FrameSelection.range(f,study.frames,study.durationMs);val start=range.first
+                Shot("selected-$i", "${i+1} · ${f.labels.firstOrNull()?.let(VideoSummary::label) ?: if(f.faces>0) "人物片刻" else "环境片刻"}",
+                    "原视频 ${VideoSummary.time(start)}–${VideoSummary.time(range.last+1)} 秒，可预览或换素材。")
+            }
+            val format=when {study.width.toFloat()/study.height>1.2f ->VideoFormat.LANDSCAPE;study.width.toFloat()/study.height<.8f ->VideoFormat.PORTRAIT;else ->VideoFormat.SQUARE}
+            val clips=selected.mapIndexed {i,f -> val range=FrameSelection.range(f,study.frames,study.durationMs);val start=range.first
+                LocalClip(shots[i].id,study.source,range.last-start+1,start)}
+            p.copy(plan=ShootingPlan(kind="video",title=if(chronological) "视频里的片刻" else "由静到动的片刻",
+                description="依据抽样画面选出 ${clips.size} 段，保留原声和原视频方向。点击生成视频即可本地合成，也可逐段替换。",shots=shots,videoFormat=format),
+                clips=clips,messages=p.messages+ChatMessage(role="assistant",text=VideoSummary.describe(study)),
+                title=if(p.messages.isEmpty()) "从视频选片" else p.title)
+        };mutable.value=state.value.copy(exportCompleted=false,exportFailed=false)
+        } catch(_:Exception) {mutable.value=state.value.copy(error="选片未保存，请检查本机存储后重试。")}
+        finally {mutable.value=state.value.copy(busy=false)}}
     }
     override fun onCleared() {editor.cancel();store.close()}
 }
 data class AssistantState(val project: ShootingProject=ShootingProject(),val projects:List<ProjectSummary> = emptyList(),
-    val ready:Boolean=false,val busy:Boolean=false,val exporting:Boolean=false,val replying:Boolean=false,val retryReply:Boolean=false,val error:String?=null,val notice:String?=null)
+    val ready:Boolean=false,val busy:Boolean=false,val exporting:Boolean=false,val replying:Boolean=false,val retryReply:Boolean=false,val error:String?=null,val notice:String?=null,val exportCompleted:Boolean=false,val exportFailed:Boolean=false,
+    val savingVideo:String?=null,val savedVideo:String?=null,val saveFailedVideo:String?=null)

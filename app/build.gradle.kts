@@ -24,8 +24,8 @@ android {
         applicationId = "com.aipose.camera"
         minSdk = 26
         targetSdk = 34
-        versionCode = 25
-        versionName = "0.1.0-beta.12"
+        versionCode = 26
+        versionName = "0.1.0-beta.13"
         ndk { abiFilters += listOf("arm64-v8a") }
 
         buildConfigField("String", "DEEPSEEK_KEY", betaKey("DEEPSEEK_API_KEY"))
@@ -98,6 +98,10 @@ dependencies {
         // Annotation processors are build-time tools, not Android runtime dependencies.
         exclude(group = "com.google.auto.value", module = "auto-value")
     }
+
+    // Bundled models run video-frame analysis locally without a model download.
+    implementation("com.google.mlkit:image-labeling:17.0.9")
+    implementation("com.google.mlkit:face-detection:16.1.7")
 
     // ML Kit 条码扫描（扫码更新）
     implementation("com.google.mlkit:barcode-scanning:17.2.0")

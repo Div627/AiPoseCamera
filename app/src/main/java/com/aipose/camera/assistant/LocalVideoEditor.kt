@@ -32,8 +32,8 @@ class LocalVideoEditor(private val context: Context) {
         temporary=output
         val items=clips.map { clip ->
             val media=MediaItem.Builder().setUri(Uri.fromFile(File(clip.file)))
-                .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(0).setEndPositionMs(minOf(5000,clip.durationMs)).build()).build()
-            EditedMediaItem.Builder(media).setEffects(Effects(emptyList(),listOf(Presentation.createForWidthAndHeight(1080,1920,Presentation.LAYOUT_SCALE_TO_FIT)))).build()
+                .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(clip.startMs).setEndPositionMs(clip.startMs+minOf(5000,clip.durationMs)).build()).build()
+            EditedMediaItem.Builder(media).setEffects(Effects(emptyList(),listOf(Presentation.createForWidthAndHeight(plan.videoFormat.width,plan.videoFormat.height,Presentation.LAYOUT_SCALE_TO_FIT)))).build()
         }
         val composition=Composition.Builder(EditedMediaItemSequence(items)).experimentalSetForceAudioTrack(true).build()
         transformer=Transformer.Builder(context)

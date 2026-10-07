@@ -1,5 +1,12 @@
 package com.aipose.camera.ui.theme
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.heightIn
@@ -20,9 +27,13 @@ fun PrimaryButton(
     shape: Shape = MaterialTheme.shapes.small,
     content: @Composable RowScope.() -> Unit,
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed && enabled) .97f else 1f, tween(120), label = "button press")
     Button(
         onClick = onClick,
-        modifier = modifier.heightIn(min = CameraDesign.Target),
+        modifier = modifier.heightIn(min = 50.dp).graphicsLayer { scaleX = scale; scaleY = scale },
+        interactionSource = interaction,
         enabled = enabled,
         shape = shape,
         border = BorderStroke(1.dp, CameraDesign.Border),

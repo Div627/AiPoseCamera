@@ -2,6 +2,11 @@ package com.aipose.camera.camera
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -40,8 +45,11 @@ fun CameraModes(current:CameraMode, enabled:Boolean, onChange:(CameraMode)->Unit
 
 @Composable
 fun CameraShutter(enabled:Boolean,busy:Boolean,onClick:()->Unit) {
-    Box(Modifier.size(CameraDesign.Shutter).semantics {contentDescription=if(busy) "正在拍摄" else if(!enabled) "拍照暂不可用" else "拍照";role=Role.Button}
-        .clip(CircleShape).clickable(enabled=enabled,onClick=onClick).border(3.dp,ShutterWhite,CircleShape).padding(7.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if(pressed && enabled) .94f else 1f,tween(100),label="shutter press")
+    Box(Modifier.size(CameraDesign.Shutter).graphicsLayer {scaleX=scale;scaleY=scale}.semantics {contentDescription=if(busy) "正在拍摄" else if(!enabled) "拍照暂不可用" else "拍照";role=Role.Button}
+        .clip(CircleShape).clickable(interactionSource=interaction,indication=null,enabled=enabled,onClick=onClick).border(3.dp,ShutterWhite,CircleShape).padding(7.dp)
         .background(ShutterWhite.copy(alpha=if(enabled) 1f else .4f),CircleShape),contentAlignment=Alignment.Center) {
         if(busy) CircularProgressIndicator(Modifier.size(26.dp),color=BgDark,strokeWidth=2.dp)
     }

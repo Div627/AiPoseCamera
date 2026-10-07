@@ -1,6 +1,10 @@
 package com.aipose.camera.assistant
 
 import com.aipose.camera.ui.theme.PrimaryButton as Button
+import com.aipose.camera.ui.theme.ActionButton
+import com.aipose.camera.ui.theme.ActionPhase
+import com.aipose.camera.ui.theme.HoldConfirmButton
+import androidx.compose.material.icons.outlined.VideoLibrary
 import android.content.Intent
 import android.speech.RecognizerIntent
 import android.app.Activity
@@ -41,7 +45,7 @@ import java.io.File
 @UnstableApi
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AssistantScreen(model: AssistantViewModel,onBack:()->Unit,onPhoto:(ShootingPlan)->Unit,onRecord:(Shot)->Unit,onPlay:(String)->Unit) {
+fun AssistantScreen(model: AssistantViewModel,onBack:()->Unit,onPhoto:(ShootingPlan)->Unit,onRecord:(Shot)->Unit,onPlay:(String)->Unit,onVideoStudy:()->Unit,onPlayClip:(LocalClip)->Unit) {
     val state by model.state.collectAsState()
     val project=state.project
     var input by remember {mutableStateOf("")}
@@ -77,6 +81,7 @@ fun AssistantScreen(model: AssistantViewModel,onBack:()->Unit,onPhoto:(ShootingP
         Row(Modifier.fillMaxWidth().statusBarsPadding().height(48.dp).padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically) {
             IconButton(onClick=onBack){Icon(Icons.Outlined.CameraAlt,"返回相机")}
             Spacer(Modifier.weight(1f))
+            IconButton(enabled=!state.busy,onClick=onVideoStudy){Icon(Icons.Outlined.VideoLibrary,"从视频选片")}
             IconButton(enabled=!state.busy,onClick={projectsOpen=true}){Icon(Icons.Outlined.Folder,"本地项目")}
             IconButton(enabled=!state.busy,onClick={model.newProject();input="";voiceNotice=null}){Icon(Icons.Outlined.Add,"新对话")}
         }
@@ -154,14 +159,14 @@ fun AssistantScreen(model: AssistantViewModel,onBack:()->Unit,onPhoto:(ShootingP
                         Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surface) {
                             Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                                 Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                                    if(valid) ClipThumbnail(clip!!.file)
+                                    if(valid) ClipThumbnail(clip!!.file,clip.startMs)
                                     Column(Modifier.weight(1f)){Text(shot.title,style=MaterialTheme.typography.titleMedium);Text(if(valid) "已填充 · ${clip!!.durationMs/1000} 秒" else if(clip!=null) "素材缺失，请重新选择" else "待拍摄，也可跳过",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
                                 }
                                 Text(shot.direction,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
                                 Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
                                     TextButton(enabled=!state.busy,onClick={onRecord(shot)}){Text(if(valid) "重拍" else "拍这一段")}
                                     TextButton(enabled=!state.busy,onClick={importing=shot.id;importer.launch(arrayOf("video/*"))}){Text(if(valid) "换素材" else "从相册选")}
-                                    if(valid) TextButton(enabled=!state.busy,onClick={onPlay(clip!!.file)}){Text("预览")}
+                                    if(valid) TextButton(enabled=!state.busy,onClick={onPlayClip(clip!!)}){Text("预览")}
                                 }
                                 if(valid) TextButton(enabled=!state.busy,onClick={model.removeClip(shot.id)}){Text("移除此段")}
                             }
@@ -171,14 +176,18 @@ fun AssistantScreen(model: AssistantViewModel,onBack:()->Unit,onPhoto:(ShootingP
                         val filled=plan.shots.count {shot -> project.clips.any {it.shotId==shot.id && File(it.file).exists()} }
                         Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
                             Text("$filled / ${plan.shots.size} 段已准备 · 至少两段可成片",style=MaterialTheme.typography.bodySmall)
-                            Button(enabled=filled>=2 && !state.busy,onClick=model::generateVideo,modifier=Modifier.fillMaxWidth()){Text(if(state.exporting) "合成中…" else "生成视频")}
-                            Text("按镜头顺序拼接，每段保留最多 5 秒，统一竖屏并保留原声。当前是本地粗剪，不做 AI 画面评分或自动配乐。",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                            ActionButton("生成视频","正在合成…","已生成 · 再生成",
+                                when {state.exporting -> ActionPhase.RUNNING;state.exportFailed -> ActionPhase.FAILED;state.exportCompleted -> ActionPhase.SUCCEEDED;else -> ActionPhase.READY},
+                                model::generateVideo,Modifier.fillMaxWidth(),enabled=filled>=2 && (!state.busy || state.exporting))
+                            Text("按镜头顺序拼接，每段保留最多 5 秒，输出 ${plan.videoFormat.width}×${plan.videoFormat.height} 并保留原声。当前是本地粗剪，不做 AI 画面评分或自动配乐。",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
             }
             items(project.exports.asReversed(),key={it},contentType={"export"}) {file ->
-                Column {Text("本地成片",style=MaterialTheme.typography.titleMedium);Row {TextButton(onClick={onPlay(file)}){Text("播放")};TextButton(enabled=!state.busy,onClick={model.saveVideo(file)}){Text("保存到相册")}}}
+                Column {Text("本地成片",style=MaterialTheme.typography.titleMedium);Row {TextButton(onClick={onPlay(file)}){Text("播放")};ActionButton("保存到相册","正在保存…","已保存",
+                    when {state.savingVideo==file -> ActionPhase.RUNNING;state.savedVideo==file -> ActionPhase.SUCCEEDED;state.saveFailedVideo==file -> ActionPhase.FAILED;else -> ActionPhase.READY},
+                    {model.saveVideo(file)},enabled=!state.busy || state.savingVideo==file)}}
             }
             if(project.photos.isNotEmpty()) item {
                 val context=LocalContext.current
@@ -196,19 +205,19 @@ fun AssistantScreen(model: AssistantViewModel,onBack:()->Unit,onPhoto:(ShootingP
             }}
         }
     }
-    delete?.let {summary -> AlertDialog(onDismissRequest={delete=null},title={Text("删除这个本地项目？")},text={Text("删除对话和项目内的视频副本。相册原素材与已保存到相册的作品保留。")},confirmButton={TextButton(onClick={model.deleteProject(summary.id);delete=null}){Text("删除")}},dismissButton={TextButton(onClick={delete=null}){Text("保留")}})}
+    delete?.let {summary -> AlertDialog(onDismissRequest={delete=null},title={Text("删除这个本地项目？")},text={Text("删除对话和项目内的视频副本。相册原素材与已保存到相册的作品保留。")},confirmButton={HoldConfirmButton(onConfirm={model.deleteProject(summary.id);delete=null})},dismissButton={TextButton(onClick={delete=null}){Text("保留")}})}
     if(placesOpen) PlacesSheet {placesOpen=false}
 }
 
 @Composable
-private fun ClipThumbnail(path: String) {
-    val image by produceState<Bitmap?>(null,path) {
+private fun ClipThumbnail(path: String,startMs:Long=0) {
+    val image by produceState<Bitmap?>(null,path,startMs) {
         value=withContext(Dispatchers.IO) {
             val reader=MediaMetadataRetriever()
             try {
                 reader.setDataSource(path)
-                if(Build.VERSION.SDK_INT>=27) reader.getScaledFrameAtTime(0,MediaMetadataRetriever.OPTION_CLOSEST_SYNC,128,128)
-                else reader.getFrameAtTime(0)?.let {bitmap -> Bitmap.createScaledBitmap(bitmap,128,128,true).also {if(it!==bitmap) bitmap.recycle()} }
+                if(Build.VERSION.SDK_INT>=27) reader.getScaledFrameAtTime(startMs*1000,MediaMetadataRetriever.OPTION_CLOSEST_SYNC,128,128)
+                else reader.getFrameAtTime(startMs*1000)?.let {bitmap -> Bitmap.createScaledBitmap(bitmap,128,128,true).also {if(it!==bitmap) bitmap.recycle()} }
             } catch(_:Exception){null} finally {reader.release()}
         }
     }

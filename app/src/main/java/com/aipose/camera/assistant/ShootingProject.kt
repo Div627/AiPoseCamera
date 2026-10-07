@@ -7,12 +7,14 @@ import java.util.UUID
 fun newId(): String = UUID.randomUUID().toString()
 data class ChatMessage(val id: String = newId(), val role: String, val text: String)
 data class Shot(val id: String, val title: String, val direction: String)
+enum class VideoFormat(val width:Int,val height:Int) {PORTRAIT(1080,1920),LANDSCAPE(1920,1080),SQUARE(1080,1080)}
 data class ShootingPlan(
     val id: String = newId(), val kind: String, val title: String,
     val description: String, val style: PhotoStyle = PhotoStyle.SCENIC,
-    val mode: CameraMode = CameraMode.LANDSCAPE, val shots: List<Shot> = emptyList()
+    val mode: CameraMode = CameraMode.LANDSCAPE, val shots: List<Shot> = emptyList(),
+    val videoFormat: VideoFormat = VideoFormat.PORTRAIT
 )
-data class LocalClip(val shotId: String, val file: String, val durationMs: Long)
+data class LocalClip(val shotId: String, val file: String, val durationMs: Long, val startMs: Long = 0)
 data class ShootingProject(
     val id: String = newId(), val title: String = "新的拍摄想法", val updated: Long = System.currentTimeMillis(),
     val messages: List<ChatMessage> = emptyList(), val plan: ShootingPlan? = null,

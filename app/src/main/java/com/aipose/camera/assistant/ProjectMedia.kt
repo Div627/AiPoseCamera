@@ -7,6 +7,8 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -24,6 +26,7 @@ object ProjectMedia {
             context.contentResolver.openInputStream(uri)?.use { input -> temporary.outputStream().use { output ->
                 val buffer=ByteArray(65536); var total=0L
                 while(true) {
+                    currentCoroutineContext().ensureActive()
                     val size=input.read(buffer); if(size<0) break
                     total+=size; require(total<512L*1024*1024 && directory.usableSpace>16L*1024*1024)
                     output.write(buffer,0,size)
